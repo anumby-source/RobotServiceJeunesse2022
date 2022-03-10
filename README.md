@@ -1,6 +1,8 @@
 # RobotServiceJeunesse2022
 
-De nouveaux capteurs pour la voiture-multicapteur !  Vous construsez une voiture-robot avec ces cellules solaires ou un détecteur à ultrason. Nous vous aidons à réaliser vos projets
+Construisez votre voiture robot ! A partir d'un kit de montage, vous assemblez une voiture intelligente
+
+Vous construisez une voiture-robot avec ces cellules solaires ou un détecteur à ultrason. Nous vous aidons à réaliser vos projets
 
 voiture avec guidage par ultrason
 
