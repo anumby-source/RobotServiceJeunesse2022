@@ -1,7 +1,7 @@
 Préparation du projet "Robot Service Jeunesse" en prévision de la journée du 6 mai 2022
 =======================================================================================
 
-- Les documents du projet précédent 2019 ont été récupérés
+- Les documents du projet précédent 2019 ont été récupérés et instalés dans le dossier [Documents 2019]()
 - vérifier la liste des composants 
     -	Une boîte en plastique
     -	Socle
