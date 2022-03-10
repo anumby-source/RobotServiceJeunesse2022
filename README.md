@@ -1,6 +1,6 @@
 # RobotServiceJeunesse2022
 
-Construisez votre voiture robot ! A partir d'un kit de montage, vous assemblez une voiture intelligente
+Construisez votre voiture robot ! A partir d'un [kit de montage](https://github.com/anumby-source/RobotServiceJeunesse2022/wiki), vous assemblez une voiture intelligente
 
 Vous construisez une voiture-robot avec des cellules solaires ou un détecteur à ultrason. Nous vous aidons à réaliser vos projets
 
