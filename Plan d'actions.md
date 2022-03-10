@@ -28,3 +28,16 @@ Préparation du [projet "Robot Service Jeunesse"](https://github.com/anumby-sour
         - suiveurs de ligne
         - détection des obstacles (ultrason)
     - téléverser les programmes dans les esp
+
+Principes de fonctionnement pour le projet:
+===========================================
+
+A priori tout ce que l'on prépare (le robot, sa base et ses options ultérieures) ont vocation à être réalisées par des jeunes du ServiceJeunesse, soit lors de la journée du 6 mai 2022, ou bien ultérieurement lors de futures sessions accompagnées par Anumby. Donc l'idée est que tout ce que l'on propose doit être "faisable", c'est à dire:
+- documenté
+- associé - sous forme de document ou d'un lien - à:
+    - la liste des composants nécessaires 
+    - le mode opératoire
+    - les programmes à flasher
+    - les plans de câblage
+ - si ces éléments ne sont pas disponible, ceci doit être consigné dans une "action" (autrement dit une "issue") qui sera fermée lorsque l'element sera fourni
+ 
