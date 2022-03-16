@@ -13,6 +13,10 @@ voiture avec 2 cellules orientées vers la route ou vers l'avant pour suivre un 
 
 ![voiture](https://github.com/arnaudrco/visio/blob/main/voiture-circuit.gif)![voiture](https://github.com/arnaudrco/visio/blob/main/voiture.gif)
 
+Nous avons aussi un peu de travail de bois
+
+![bois](https://github.com/anumby-source/developpement-voiture/blob/main/bois.png.png)
+
 Voir le projet complet sur [developpement-voiture](https://github.com/anumby-source/developpement-voiture/wiki)
 
 
