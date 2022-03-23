@@ -107,16 +107,21 @@ void setup()
 }
 
 void bip(){ // test moteur 
-   digitalWrite(PinA, LOW);digitalWrite(PinB, LOW);
-   analogWrite(SpeedA,AA);analogWrite(SpeedB,AA);
+   digitalWrite(PinA, LOW);
+   digitalWrite(PinB, LOW);
+   analogWrite(SpeedA, AA);
+   analogWrite(SpeedB, AA);
    delay(200);
-   analogWrite(SpeedA,0);analogWrite(SpeedB,0);
+   analogWrite(SpeedA, 0);
+   analogWrite(SpeedB, 0);
    delay(400);
 }
 
 void patinage(){ // 2 moteurs en marche avant pour éviter le patinage
-   digitalWrite(PinA, LOW);digitalWrite(PinB, LOW);
-   analogWrite(SpeedA,AA);analogWrite(SpeedB,AA);
+   digitalWrite(PinA, LOW);
+   digitalWrite(PinB, LOW);
+   analogWrite(SpeedA, AA);
+   analogWrite(SpeedB, AA);
    delay(1);
 }
 
@@ -135,9 +140,10 @@ void loop()
    }
    if (abs(valeur - initial) < sensibilite)  {
       if(dir!= 0){
-         Serial.println(valeur);Serial.println("tout droit");
+         Serial.println(valeur);
+         Serial.println("tout droit");
          dir=0;
-         tempoLampe=currentMillis;
+         tempoLampe = currentMillis;
          digitalWrite(PinA, LOW);
          digitalWrite(PinB, LOW);
          analogWrite(SpeedA, AA);
