@@ -10,41 +10,205 @@
 # include <ESP8266WebServer.h>
 # //  # include <WiFiManager.h>         // https://github.com/tzapu/WiFiManager
 
-capteur = A0
-PinA = 0          # broche enable du L298N pour le premier moteur
-PinB = 2          # broche enable du L298N pour le deuxième moteur
-SpeedA = 5        # Premier moteur
-SpeedB = 4        # Deuxième moteur
+import time
+from machine import ADC
+from machine import Pin, PWM
+
+try:
+  import usocket as socket
+except:
+  import socket
+
+import network
+
+import esp
+esp.osdebug(None)
+
+import gc
+gc.collect()
+
 DROITE = 1        # tourne à droite
 GAUCHE = 2        # tourne à gauche
 MILIEU = 510      # pont de résistance 1024 / 2 environ
 MAX = 100         # sensibilite maximum avec réglage initial MAX / 2
 MIN = 0           # sensibilite min
 
-# sensibilite = MAX   # écart admissible par rapport à la valenitiale
-initial          # valeur initiale du capteur balance lumière
-dir = 0          # direction 0: tout droit
+class Robot(object):
+    def __init__(self):
+        self.capteur = ADC(0)
 
-IPAddress apIP(44, 44, 44, 44)  # Définition de l'adresse IP statique.
-# const char * ssid = "RCO"; # Nom du reseau wifi(***A modifier ***)
-password = "12345678" # mot de passe (***A modifier ***)
-# ESP8266WebServer server(80)
+        self.PinA = Pin(0, Pin.OUT)  # broche enable du L298N pour le premier moteur
+        self.PinB = Pin(2, Pin.OUT)  # broche enable du L298N pour le deuxième moteur
+        self.SpeedA = PWM(Pin(5, Pin.OUT), freq=1000)  # Premier moteur
+        self.SpeedB = PWM(Pin(4, Pin.OUT), freq=1000)  # Deuxième moteur
 
-AA = 600 # target Speed
-sensibilite # sensibilité
-buffer = bytearray[30]
-tempoLampe = 0 # will store last time LAMPE was updated
-intervalLampe = 2000
+        # self.sensibilite = MAX   # écart admissible par rapport à la valenitiale
+        self.initial = 0  # valeur initiale du capteur balance lumière
+        self.dir = 0  # direction 0: tout droit
 
-WiFiServer server(80)
+        self.AA = 600 # target Speed
+        self.sensibilite = MIN # sensibilité
+        self.tempoLampe = 0 # will store last time LAMPE was updated
+        self.intervalLampe = 2000
 
-html1 = """<!DOCTYPE html>
+        self.PinA.off()
+        self.PinB.off()
+
+        self.bip() # test moteur
+        self.initial = self.capteur.read()
+        if self.initial > 100: # lecture des valeurs initiales (on suppose que les capteurs sont de part et d'autre de la ligne)
+            self.bip()
+
+        if abs(self.initial - MILIEU) < (MAX / 4):
+            self.bip()
+        else:
+            self.initial = MILIEU
+
+        self.sensibilite = MAX / 2 # sensibilite maximum avec réglage initial
+
+        time.sleep_us(1000)
+
+    def bip(self):  # test moteur
+        self.PinA.off()
+        self.PinB.off()
+        self.SpeedA.duty(self.AA)
+        self.SpeedB.duty(self.AA)
+
+        time.sleep_us(200)
+
+        self.SpeedA.duty(0)
+        self.SpeedB.duty(0)
+
+        time.sleep_us(400)
+
+    def patinage(self):  # 2 moteurs en marche avant pour éviter le patinage
+        self.PinA.off()
+        self.PinB.off()
+        self.SpeedA.duty(self.AA)
+        self.SpeedB.duty(self.AA)
+
+        time.sleep_us(1)
+
+    def capteur_operate(self):
+        # temporisation de 2s pour moteur
+        valeur = self.capteur.read()
+
+        # temporisation de 2s pour moteur
+        self.currentMillis = millis()
+
+        if (self.currentMillis - self.tempoLampe) > self.intervalLampe:
+            # print("on s'arrête");
+            self.SpeedA.duty(0)
+            self.SpeedB.duty(0)
+
+        if abs(valeur - self.initial) < self.sensibilite:
+            if self.dir != 0:
+                print(valeur)
+                print("tout droit")
+                self.dir = 0
+                self.tempoLampe = self.currentMillis
+                self.PinA.off()
+                self.PinB.off()
+                self.SpeedA.duty(self.AA)
+                self.SpeedB.duty(self.AA)
+        else:
+            if valeur > self.initial:
+                if self.dir != GAUCHE:
+                    print(valeur)
+                    print("on tourne à gauche")
+                    self.dir = GAUCHE
+                    self.tempoLampe = self.currentMillis
+                    self.patinage()
+                    self.PinA.off()
+                    self.PinB.off()
+                    self.SpeedA.duty(0)
+                    self.SpeedB.duty(self.AA)
+                    # self.PinA.on()
+                    # self.PinB.off()
+                    # self.SpeedA.duty(AA)
+                    # self.SpeedB.duty(AA)
+            elif valeur < self.initial:
+                if self.dir != DROITE:
+                    print(valeur)
+                    print("on tourne à droite")
+                    self.dir = DROITE
+                    self.tempoLampe = self.currentMillis
+                    self.patinage()
+                    self.PinA.off()
+                    self.PinB.off()
+                    self.SpeedA.duty(self.AA)
+                    self.SpeedB.duty(0)
+                    # self.PinA.off()
+                    # self.PinB.on()
+                    # self.SpeedA.duty(AA)
+                    # self.SpeedB.duty(AA)
+
+    def server_operate(self):
+        client = server.available()
+        if not client: return
+
+        request = client.readStringUntil('\r')
+
+        # -----------------PAVE HAUT------------
+        if request.indexOf("LED0=1") != -1:
+            self.AA += 50
+            if self.AA > 1023: self.AA = 1023
+        if request.indexOf("LED0=2") != -1:
+            self.tempoLampe = self.currentMillis
+            self.PinB.off()
+            self.PinA.off()
+            self.SpeedA.duty(self.AA)
+            self.SpeedB.duty(self.AA)
+        if request.indexOf("LED0=3") != -1:
+            self.sensibilite += 10
+            if self.sensibilite > MAX: self.sensibilite = MAX
+
+        # -----------------PAVE CENTRE------------
+        if request.indexOf("LED0=4") != -1:
+            self.tempoLampe = self.currentMillis
+            self.PinA.off()
+            self.PinB.on()
+            self.SpeedA.duty(self.AA)
+            self.SpeedB.duty(self.AA)
+        if request.indexOf("LED0=5") != -1:
+            self.SpeedA.duty(0)
+            self.SpeedB.duty(0)
+        if request.indexOf("LED0=6") != -1:
+            self.tempoLampe = self.currentMillis
+            self.PinA.on()
+            self.PinB.off()
+            self.SpeedA.duty(self.AA)
+            self.SpeedB.duty(self.AA)
+
+        # -----------------PAVE BAS------------
+        if request.indexOf("LED0=7") != -1:
+            self.AA -= 50
+            if self.AA < 0: self.AA = 0
+        if request.indexOf("LED0=8") != -1:
+            self.tempoLampe = self.currentMillis
+            self.PinA.on()
+            self.PinB.on()
+            self.SpeedA.duty(self.AA)
+            self.SpeedB.duty(self.AA)
+        if request.indexOf("LED0=9") != -1:
+            self.sensibilite -= 10
+            if self.sensibilite < MIN: self.sensibilite = MIN
+
+        # Affichage de la sensibilite
+        valeur = self.capteur.read()
+        sprintf(buffer, " M=%d (%d) B=%d", self.AA, valeur - self.initial, self.sensibilite)
+        # print(buffer)
+        client.print(self.web_page())
+        request = ""
+
+    def web_page(self):
+        html = """
+<!DOCTYPE html>
 <html>
 <head>
 <style> .button { padding:10px 10px 10px 10px; width:100%;  background-color: green; font-size: 500%;color:white;} </style>
-<center><h1>ARNAUD"""
-
-html2 = """</h1>
+<center>
+<h1>ARNAUD</h1>
   <form>
       <TABLE BORDER>
           <TR>
@@ -63,179 +227,95 @@ html2 = """</h1>
               <TD> <button name='LED0' class='button' value='9' type='submit'> >> </button></TD>
           </TR>
       </TABLE>
-  </form> """
-
-html3 = """</center>
+  </form>
+</center>
 </head> 
 </html>"""
+
+
+        h = """
+<html>
+<head>
+  <title>ESP Web Server</title> 
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,"> 
+  <style>html{font-family: Helvetica; display:inline-block; margin: 0px auto; text-align: center;}
+  h1{color: #0F3376; padding: 2vh;}
+  p{font-size: 1.5rem;}.button{display: inline-block; 
+                               background-color: #e7bd3b; 
+                               border: none;
+                               border-radius: 4px; 
+                               color: white; 
+                               padding: 16px 40px; 
+                               text-decoration: none; 
+                               font-size: 30px; 
+                               margin: 2px; 
+                               cursor: pointer;}
+                        .button2{background-color: #4286f4;}</style>
+</head>
+<body> 
+  <h1>ESP Web Server</h1> 
+  <p>GPIO state: <strong>""" + gpio_state + """</strong></p>
+  <p>
+      <a href="/?led=on"><button class="button">ON</button></a>
+  </p>
+  <p>
+      <a href="/?led=off"><button class="button button2">OFF</button></a>
+  </p>
+</body>
+</html>
+    """
+        return html
+
+
+
+
+
+
+IPAddress apIP(44, 44, 44, 44)  # Définition de l'adresse IP statique.
+# const char * ssid = "RCO"; # Nom du reseau wifi(***A modifier ***)
+password = "12345678" # mot de passe (***A modifier ***)
+# ESP8266WebServer server(80)
+buffer = bytearray[30]
+
 
 def setup():
     currentMillis = millis()
     ssid = bytearray[30]
     sprintf(ssid, "RCO_%d", ESP.getChipId())
 
-    Serial.begin(115200)
-
-    pinMode(PinA, OUTPUT)
-    pinMode(PinB, OUTPUT)
-    pinMode(SpeedA, OUTPUT)
-    pinMode(SpeedB, OUTPUT)
-    digitalWrite(PinA, LOW)
-    digitalWrite(PinB, LOW)
 
     # declaration du wifi:
-    WiFi.mode(WIFI_AP)
-    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0))
-    WiFi.softAP(ssid, password)
+    # WiFi.mode(WIFI_AP)
+    # WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0))
+    # WiFi.softAP(ssid, password)
+
+    ssid = 'REPLACE_WITH_YOUR_SSID'
+
+    station = network.WLAN(network.STA_IF)
+
+    station.active(True)
+    station.connect(ssid, password)
+
+    while station.isconnected():
+        pass
+
+    print('Connection successful')
+    print(station.ifconfig())
 
     # if you get here you have connected to the WiFi
-    Serial.println("Connected.")
+    print("Connected.")
 
     server.begin()
-    bip() # test moteur
-    initial = analogRead(capteur)
-    if (initial > 100): # lecture des valeurs initiales (on suppose que les capteurs sont de part et d'autre de la ligne)
-        bip()
-
-    if (abs(initial - MILIEU) < (MAX / 4)):
-        bip()
-    else:
-        initial = MILIEU
-
-    sensibilite = MAX / 2 # sensibilite maximum avec réglage initial
-    delay(1000)
 
 
-def bip():  # test moteur
-    digitalWrite(PinA, LOW)
-    digitalWrite(PinB, LOW)
-    analogWrite(SpeedA, AA)
-    analogWrite(SpeedB, AA)
-    delay(200)
-    analogWrite(SpeedA, 0)
-    analogWrite(SpeedB, 0)
-    delay(400)
 
 
-def patinage():    # 2 moteurs en marche avant pour éviter le patinage
-    digitalWrite(PinA, LOW)
-    digitalWrite(PinB, LOW)
-    analogWrite(SpeedA, AA)
-    analogWrite(SpeedB, AA)
-    delay(1)
+robot = Robot()
+while True:
+    robot.capteur_operate()
+    robot.server_operate()
 
-def loop():
-    # temporisation de 2s pour moteur
-    valeur = analogRead(capteur)
+    time.sleep_us(100)
 
-    # temporisation de 2s pour moteur
-    currentMillis = millis()
-
-    if (currentMillis - tempoLampe > intervalLampe):
-        # Serial.println("on s'arrête");
-        digitalWrite(SpeedA, 0)
-        digitalWrite(SpeedB, 0)
-
-    if (abs(valeur - initial) < sensibilite):
-        if (dir != 0):
-            Serial.println(valeur)
-            Serial.println("tout droit")
-            dir = 0
-            tempoLampe = currentMillis
-            digitalWrite(PinA, LOW)
-            digitalWrite(PinB, LOW)
-            analogWrite(SpeedA, AA)
-            analogWrite(SpeedB, AA)
-        else:
-            if (valeur > initial):
-                if (dir != GAUCHE):
-                    Serial.print(valeur)
-                    Serial.println("on tourne à gauche")
-                    dir = GAUCHE
-                    tempoLampe = currentMillis
-                    patinage()
-                    digitalWrite(PinA, LOW)
-                    digitalWrite(PinB, LOW)
-                    digitalWrite(SpeedA, 0)
-                    analogWrite(SpeedB, AA)
-                    # digitalWrite(PinA, HIGH)
-                    # digitalWrite(PinB, LOW)
-                    # digitalWrite(SpeedA, AA)
-                    # analogWrite(SpeedB, AA)
-                else if (valeur < initial):
-                    if (dir != DROITE):
-                        Serial.print(valeur)
-                        Serial.println("on tourne à droite")
-                        dir = DROITE
-                        tempoLampe = currentMillis
-                        patinage()
-                        digitalWrite(PinA, LOW)
-                        digitalWrite(PinB, LOW)
-                        analogWrite(SpeedA, AA)
-                        digitalWrite(SpeedB, 0)
-                        # digitalWrite(PinA, LOW)
-                        # digitalWrite(PinB, HIGH)
-                        # analogWrite(SpeedA, AA)
-                        # digitalWrite(SpeedB, AA)
-
-        client = server.available()
-        if (client):
-            request = client.readStringUntil('\r')
-
-            # -----------------PAVE HAUT------------
-            if (request.indexOf("LED0=1") != -1):
-                AA += 50
-                if (AA > 1023) AA=1023
-            if (request.indexOf("LED0=2") != -1):
-                tempoLampe = currentMillis
-                digitalWrite(PinB, LOW)
-                digitalWrite(PinA, LOW)
-                analogWrite(SpeedA, AA)
-                analogWrite(SpeedB, AA)
-            if (request.indexOf("LED0=3") != -1):
-                sensibilite += 10
-                if (sensibilite > MAX) sensibilite = MAX
-
-            # -----------------PAVE CENTRE------------
-            if (request.indexOf("LED0=4") != -1):
-                tempoLampe = currentMillis
-                digitalWrite(PinA, LOW)
-                digitalWrite(PinB, HIGH)
-                analogWrite(SpeedA, AA)
-                analogWrite(SpeedB, AA)
-            if (request.indexOf("LED0=5") != -1):
-                analogWrite(SpeedA, 0)
-                analogWrite(SpeedB, 0)
-            if (request.indexOf("LED0=6") != -1):
-                tempoLampe = currentMillis
-                digitalWrite(PinA, HIGH)
-                digitalWrite(PinB, LOW)
-                analogWrite(SpeedA, AA)
-                analogWrite(SpeedB, AA)
-
-            # -----------------PAVE BAS------------
-            if (request.indexOf("LED0=7") != -1):
-                AA -= 50
-                if (AA < 0) AA=0
-            if (request.indexOf("LED0=8") != -1):
-                tempoLampe = currentMillis
-                digitalWrite(PinA, HIGH)
-                digitalWrite(PinB, HIGH)
-                analogWrite(SpeedA, AA)
-                analogWrite(SpeedB, AA)
-            if (request.indexOf("LED0=9") != -1):
-                sensibilite -= 10
-                if (sensibilite < MIN) sensibilite = MIN
-
-        # Affichage de la sensibilite
-        sprintf(buffer, " M=%d (%d) B=%d", AA, valeur - initial, sensibilite)
-        # Serial.println(buffer)
-        client.print(html1)
-        client.print(buffer)
-        client.print(html2)
-        # client.print(html)
-        request = ""
-
-
-    delay(100)
 

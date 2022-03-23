@@ -139,7 +139,7 @@ void loop()
       digitalWrite(SpeedB, 0);
    }
    if (abs(valeur - initial) < sensibilite)  {
-      if(dir!= 0){
+      if(dir != 0){
          Serial.println(valeur);
          Serial.println("tout droit");
          dir=0;
@@ -151,7 +151,7 @@ void loop()
       }
    } else {
       if (valeur > initial) {
-         if (dir!= GAUCHE) {
+         if (dir != GAUCHE) {
             Serial.print(valeur);
             Serial.println("on tourne à gauche");
             dir = GAUCHE;
