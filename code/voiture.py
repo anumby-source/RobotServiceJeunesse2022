@@ -33,173 +33,26 @@ MILIEU = 510      # pont de résistance 1024 / 2 environ
 MAX = 100         # sensibilite maximum avec réglage initial MAX / 2
 MIN = 0           # sensibilite min
 
-class Robot(object):
+
+class Sever(object):
     def __init__(self):
-        self.capteur = ADC(0)
+        pass
 
-        self.PinA = Pin(0, Pin.OUT)  # broche enable du L298N pour le premier moteur
-        self.PinB = Pin(2, Pin.OUT)  # broche enable du L298N pour le deuxième moteur
-        self.SpeedA = PWM(Pin(5, Pin.OUT), freq=1000)  # Premier moteur
-        self.SpeedB = PWM(Pin(4, Pin.OUT), freq=1000)  # Deuxième moteur
+    def do_connect(self):
+        ssid = "RCO_{ssid}".format(ssid=machine.unique_id())
+        password = "12345678"  # mot de passe (***A modifier ***)
+        wlan = network.WLAN(network.STA_IF)
+        wlan.active(True)
+        if not wlan.isconnected():
+            print('connecting to network...')
+            wlan.connect(ssid, password)
+            while not wlan.isconnected():
+                pass
+        print('network config:', wlan.ifconfig())
 
-        # self.sensibilite = MAX   # écart admissible par rapport à la valenitiale
-        self.initial = 0  # valeur initiale du capteur balance lumière
-        self.dir = 0  # direction 0: tout droit
-
-        self.AA = 600 # target Speed
-        self.sensibilite = MIN # sensibilité
-        self.tempoLampe = 0 # will store last time LAMPE was updated
-        self.intervalLampe = 2000
-
-        self.PinA.off()
-        self.PinB.off()
-
-        self.bip() # test moteur
-        self.initial = self.capteur.read()
-        if self.initial > 100: # lecture des valeurs initiales (on suppose que les capteurs sont de part et d'autre de la ligne)
-            self.bip()
-
-        if abs(self.initial - MILIEU) < (MAX / 4):
-            self.bip()
-        else:
-            self.initial = MILIEU
-
-        self.sensibilite = MAX / 2 # sensibilite maximum avec réglage initial
-
-        time.sleep_us(1000)
-
-    def bip(self):  # test moteur
-        self.PinA.off()
-        self.PinB.off()
-        self.SpeedA.duty(self.AA)
-        self.SpeedB.duty(self.AA)
-
-        time.sleep_us(200)
-
-        self.SpeedA.duty(0)
-        self.SpeedB.duty(0)
-
-        time.sleep_us(400)
-
-    def patinage(self):  # 2 moteurs en marche avant pour éviter le patinage
-        self.PinA.off()
-        self.PinB.off()
-        self.SpeedA.duty(self.AA)
-        self.SpeedB.duty(self.AA)
-
-        time.sleep_us(1)
-
-    def capteur_operate(self):
-        # temporisation de 2s pour moteur
-        valeur = self.capteur.read()
-
-        # temporisation de 2s pour moteur
-        self.currentMillis = millis()
-
-        if (self.currentMillis - self.tempoLampe) > self.intervalLampe:
-            # print("on s'arrête");
-            self.SpeedA.duty(0)
-            self.SpeedB.duty(0)
-
-        if abs(valeur - self.initial) < self.sensibilite:
-            if self.dir != 0:
-                print(valeur)
-                print("tout droit")
-                self.dir = 0
-                self.tempoLampe = self.currentMillis
-                self.PinA.off()
-                self.PinB.off()
-                self.SpeedA.duty(self.AA)
-                self.SpeedB.duty(self.AA)
-        else:
-            if valeur > self.initial:
-                if self.dir != GAUCHE:
-                    print(valeur)
-                    print("on tourne à gauche")
-                    self.dir = GAUCHE
-                    self.tempoLampe = self.currentMillis
-                    self.patinage()
-                    self.PinA.off()
-                    self.PinB.off()
-                    self.SpeedA.duty(0)
-                    self.SpeedB.duty(self.AA)
-                    # self.PinA.on()
-                    # self.PinB.off()
-                    # self.SpeedA.duty(AA)
-                    # self.SpeedB.duty(AA)
-            elif valeur < self.initial:
-                if self.dir != DROITE:
-                    print(valeur)
-                    print("on tourne à droite")
-                    self.dir = DROITE
-                    self.tempoLampe = self.currentMillis
-                    self.patinage()
-                    self.PinA.off()
-                    self.PinB.off()
-                    self.SpeedA.duty(self.AA)
-                    self.SpeedB.duty(0)
-                    # self.PinA.off()
-                    # self.PinB.on()
-                    # self.SpeedA.duty(AA)
-                    # self.SpeedB.duty(AA)
-
-    def server_operate(self):
-        client = server.available()
-        if not client: return
-
-        request = client.readStringUntil('\r')
-
-        # -----------------PAVE HAUT------------
-        if request.indexOf("LED0=1") != -1:
-            self.AA += 50
-            if self.AA > 1023: self.AA = 1023
-        if request.indexOf("LED0=2") != -1:
-            self.tempoLampe = self.currentMillis
-            self.PinB.off()
-            self.PinA.off()
-            self.SpeedA.duty(self.AA)
-            self.SpeedB.duty(self.AA)
-        if request.indexOf("LED0=3") != -1:
-            self.sensibilite += 10
-            if self.sensibilite > MAX: self.sensibilite = MAX
-
-        # -----------------PAVE CENTRE------------
-        if request.indexOf("LED0=4") != -1:
-            self.tempoLampe = self.currentMillis
-            self.PinA.off()
-            self.PinB.on()
-            self.SpeedA.duty(self.AA)
-            self.SpeedB.duty(self.AA)
-        if request.indexOf("LED0=5") != -1:
-            self.SpeedA.duty(0)
-            self.SpeedB.duty(0)
-        if request.indexOf("LED0=6") != -1:
-            self.tempoLampe = self.currentMillis
-            self.PinA.on()
-            self.PinB.off()
-            self.SpeedA.duty(self.AA)
-            self.SpeedB.duty(self.AA)
-
-        # -----------------PAVE BAS------------
-        if request.indexOf("LED0=7") != -1:
-            self.AA -= 50
-            if self.AA < 0: self.AA = 0
-        if request.indexOf("LED0=8") != -1:
-            self.tempoLampe = self.currentMillis
-            self.PinA.on()
-            self.PinB.on()
-            self.SpeedA.duty(self.AA)
-            self.SpeedB.duty(self.AA)
-        if request.indexOf("LED0=9") != -1:
-            self.sensibilite -= 10
-            if self.sensibilite < MIN: self.sensibilite = MIN
-
-        # Affichage de la sensibilite
-        valeur = self.capteur.read()
-        sprintf(buffer, " M=%d (%d) B=%d", self.AA, valeur - self.initial, self.sensibilite)
-        # print(buffer)
-        client.print(self.web_page())
-        request = ""
+        """
+        IPAddress apIP(44, 44, 44, 44)  # Définition de l'adresse IP statique.
+        """
 
     def web_page(self):
         html = """
@@ -232,6 +85,10 @@ class Robot(object):
 </head> 
 </html>"""
 
+        if led.value() == 1:
+            gpio_state = "ON"
+        else:
+            gpio_state = "OFF"
 
         h = """
 <html>
@@ -267,48 +124,218 @@ class Robot(object):
     """
         return html
 
+    def listen(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', 80))
+        s.listen(5)
+
+        while True:
+            conn, addr = s.accept()
+            print('Got a connection from %s' % str(addr))
+            request = conn.recv(1024)
+            request = str(request)
+            print('Content = %s' % request)
+            position = request.find('LED0=')
+            if position > 0:
+                answer = request.split("LED0=")[1][0]
+                return answer
+
+            """
+            response = web_page()
+            conn.send('HTTP/1.1 200 OK\n')
+            conn.send('Content-Type: text/html\n')
+            conn.send('Connection: close\n\n')
+            conn.sendall(response)
+            conn.close()
+            """
 
 
+class Moteur(object):
+    def __init__(self):
+        self.PinA = Pin(0, Pin.OUT)  # broche enable du L298N pour le premier moteur
+        self.PinB = Pin(2, Pin.OUT)  # broche enable du L298N pour le deuxième moteur
+        self.SpeedA = PWM(Pin(5, Pin.OUT), freq=1000)  # Premier moteur
+        self.SpeedB = PWM(Pin(4, Pin.OUT), freq=1000)  # Deuxième moteur
+
+        self.PinA.off()
+        self.PinB.off()
+
+        self.vitesse = 600 # target Speed
+        self.dir = 0    # direction 0: tout droit
+
+        self.bip()      # test moteur
+
+    def bip(self):  # test moteur
+        self.PinA.off()
+        self.PinB.off()
+        self.SpeedA.duty(self.vitesse)
+        self.SpeedB.duty(self.vitesse)
+
+        time.sleep_us(200)
+
+        self.SpeedA.duty(0)
+        self.SpeedB.duty(0)
+
+        time.sleep_us(400)
+
+    def patinage(self):  # 2 moteurs en marche avant pour éviter le patinage
+        self.PinA.off()
+        self.PinB.off()
+        self.SpeedA.duty(self.vitesse)
+        self.SpeedB.duty(self.vitesse)
+
+        time.sleep_us(1)
+
+    def stop(self):
+        self.SpeedA.duty(0)
+        self.SpeedB.duty(0)
+
+    def tout_droit(self):
+        self.dir = 0
+        self.PinA.off()
+        self.PinB.off()
+        self.SpeedA.duty(self.vitesse)
+        self.SpeedB.duty(self.vitesse)
+
+    def a_gauche(self):
+        self.dir = GAUCHE
+        self.patinage()
+        self.PinA.off()
+        self.PinB.off()
+        self.SpeedA.duty(0)
+        self.SpeedB.duty(self.vitesse)
+        # self.PinA.on()
+        # self.PinB.off()
+        # self.SpeedA.duty(self.vitesse)
+        # self.SpeedB.duty(self.vitesse)
+
+    def a_droite(self):
+        self.dir = DROITE
+        self.patinage()
+        self.PinA.off()
+        self.PinB.off()
+        self.SpeedA.duty(self.vitesse)
+        self.SpeedB.duty(0)
+        # self.PinA.off()
+        # self.PinB.on()
+        # self.SpeedA.duty(self.vitesse)
+        # self.SpeedB.duty(self.vitesse)
+
+    def en_arriere(self):
+        self.PinA.on()
+        self.PinB.on()
+        self.SpeedA.duty(self.vitesse)
+        self.SpeedB.duty(self.vitesse)
+
+    def accelere(self, acceleration):
+        self.vitesse += acceleration
+        if self.vitesse > 1023:
+            self.vitesse = 1023
+        if self.vitesse < 0:
+            self.vitesse = 0
 
 
+class Robot(object):
+    def __init__(self):
+        self.now = time.ticks_ms()
 
-IPAddress apIP(44, 44, 44, 44)  # Définition de l'adresse IP statique.
-# const char * ssid = "RCO"; # Nom du reseau wifi(***A modifier ***)
-password = "12345678" # mot de passe (***A modifier ***)
-# ESP8266WebServer server(80)
-buffer = bytearray[30]
+        self.capteur = ADC(0)
+        self.moteur = Moteur()
 
+        # self.sensibilite = MAX   # écart admissible par rapport à la valeur initiale
+        self.initial = 0  # valeur initiale du capteur balance lumière
 
-def setup():
-    currentMillis = millis()
-    ssid = bytearray[30]
-    sprintf(ssid, "RCO_%d", ESP.getChipId())
+        self.sensibilite = MIN     # sensibilité
+        self.tempoLampe = 0        # will store last time LAMPE was updated
+        self.intervalLampe = 2000
 
+        self.initial = self.capteur.read()
+        # lecture des valeurs initiales (on suppose que les capteurs sont de part et d'autre de la ligne)
+        if self.initial > 100:
+            self.moteur.bip()
 
-    # declaration du wifi:
-    # WiFi.mode(WIFI_AP)
-    # WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0))
-    # WiFi.softAP(ssid, password)
+        if abs(self.initial - MILIEU) < (MAX / 4):
+            self.moteur.bip()
+        else:
+            self.initial = MILIEU
 
-    ssid = 'REPLACE_WITH_YOUR_SSID'
+        self.sensibilite = MAX / 2    # sensibilite maximum avec réglage initial
 
-    station = network.WLAN(network.STA_IF)
+        self.server = Sever()
+        self.server.do_connect()
 
-    station.active(True)
-    station.connect(ssid, password)
+        time.sleep_us(1000)
 
-    while station.isconnected():
-        pass
+    def capteur_operate(self):
+        # temporisation de 2s pour moteur
+        valeur = self.capteur.read()
 
-    print('Connection successful')
-    print(station.ifconfig())
+        # temporisation de 2s pour moteur
+        self.now = time.ticks_ms()
 
-    # if you get here you have connected to the WiFi
-    print("Connected.")
+        if (self.now - self.tempoLampe) > self.intervalLampe:
+            # print("on s'arrête");
+            self.moteur.stop()
 
-    server.begin()
+        if abs(valeur - self.initial) < self.sensibilite:
+            if self.moteur.dir != 0:
+                print(valeur)
+                print("tout droit")
+                self.tempoLampe = self.now
+                self.moteur.tout_droit()
+        else:
+            if valeur > self.initial:
+                if self.moteur.dir != GAUCHE:
+                    print(valeur)
+                    print("on tourne à gauche")
+                    self.tempoLampe = self.now
+                    self.moteur.a_gauche()
+            elif valeur < self.initial:
+                if self.moteur.dir != DROITE:
+                    print(valeur)
+                    print("on tourne à droite")
+                    self.tempoLampe = self.now
+                    self.moteur.a_droite()
 
+    def server_operate(self):
+        answer = self.server.listen()
 
+        # -----------------PAVE HAUT------------
+        if answer == "1":
+            self.moteur.accelere(50)
+        if answer == "2":
+            self.tempoLampe = self.now
+            self.moteur.tout_droit()
+        if answer == "3":
+            self.sensibilite += 10
+            if self.sensibilite > MAX:
+                self.sensibilite = MAX
+
+        # -----------------PAVE CENTRE------------
+        if answer == "4":
+            self.tempoLampe = self.now
+            self.moteur.a_droite()
+        if answer == "5":
+            self.moteur.stop()
+        if answer == "6":
+            self.tempoLampe = self.now
+            self.moteur.a_gauche()
+
+        # -----------------PAVE BAS------------
+        if answer == "7":
+            self.moteur.accelere(-50)
+        if answer == "8":
+            self.tempoLampe = self.now
+            self.moteur.en_arriere()
+        if answer == "9":
+            self.sensibilite -= 10
+            if self.sensibilite < MIN:
+                self.sensibilite = MIN
+
+        # Affichage de la sensibilite
+        # valeur = self.capteur.read()
+        # buffer = " M={v} D={d} B={s}".format(v=self.vitesse, d=valeur - self.initial, s=self.sensibilite)
+        # print(buffer)
 
 
 robot = Robot()
