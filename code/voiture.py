@@ -5,11 +5,6 @@
     Chris Arnault
 """
 
-# include <ESP8266WiFi.h>
-# include <DNSServer.h>
-# include <ESP8266WebServer.h>
-# //  # include <WiFiManager.h>         // https://github.com/tzapu/WiFiManager
-
 import time
 from machine import ADC
 from machine import Pin, PWM
