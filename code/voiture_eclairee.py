@@ -8,19 +8,25 @@
 import time
 from machine import ADC
 from machine import Pin, PWM
-
 import esp
-esp.osdebug(None)
-
 import gc
-gc.collect()
+
 
 ARRIERE = 0            # recule
 DROITE = 1             # tourne à droite
 GAUCHE = 2             # tourne à gauche
 AVANT = 3              # avant
 NB_ITERATION = 100     # itérations de la fonction delta
+MIN = 0
 MAX = 12               # sensibilite maximum avec réglage initial MAX / 2
+
+esp.osdebug(None)
+gc.collect()
+
+
+def map_vitesse(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
 
 class Moteur(object):
     def __init__(self):
@@ -36,13 +42,37 @@ class Moteur(object):
         self.vitesse = 600  # target Speed
         self.dir = AVANT    # direction 0: tout droit
 
-        self.bip()      # test moteur
+        self.moteur_droit = self.vitesse
+        self.moteur_gauche = self.vitesse
+
+        self.bip()      # test moself.moteur_droself.moteur_droit
+
+    def init(self, v1, v2, direction):
+        self.moteur_droit = v1
+        self.moteur_gauche = v2
+        self.SpeedA.duty(self.moteur_droit)
+        self.SpeedB.duty(self.moteur_gauche)
+
+        if direction == AVANT:
+            self.PinA.off()
+            self.PinB.off()
+        elif direction == DROITE:
+            self.PinA.off()
+            self.PinB.on()
+        elif direction == GAUCHE:
+            self.PinA.on()
+            self.PinB.off()
+        elif direction == ARRIERE:
+            self.PinA.on()
+            self.PinB.on()
+
+        self.dir = direction
 
     def bip(self):  # test moteur
         self.PinA.off()
         self.PinB.off()
-        self.SpeedA.duty(self.vitesse)
-        self.SpeedB.duty(self.vitesse)
+        self.SpeedA.duty(self.moteur_droit)
+        self.SpeedB.duty(self.moteur_gauche)
 
         time.sleep_us(200)
 
@@ -51,11 +81,11 @@ class Moteur(object):
 
         time.sleep_us(400)
 
-    def patinage(self):  # 2 moteurs en marche avant pour éviter le patinage
+    def start(self):  # 2 moteurs en marche avant pour éviter le patinage
         self.PinA.off()
         self.PinB.off()
-        self.SpeedA.duty(self.vitesse)
-        self.SpeedB.duty(self.vitesse)
+        self.SpeedA.duty(self.moteur_droit)
+        self.SpeedB.duty(self.moteur_gauche)
 
         time.sleep_us(1)
 
@@ -67,44 +97,44 @@ class Moteur(object):
         self.dir = 0
         self.PinA.off()
         self.PinB.off()
-        self.SpeedA.duty(self.vitesse)
-        self.SpeedB.duty(self.vitesse)
+        self.SpeedA.duty(self.moteur_droit)
+        self.SpeedB.duty(self.moteur_gauche)
 
     def a_gauche(self):
-        # digitalWrite(PinA, HIGH)
-        # digitalWrite(PinB, LOW)
+        # self.PinA.on()
+        # self.PinB.off()
         self.dir = GAUCHE
-        self.patinage()
+        self.start()
         self.PinA.off()
         self.PinB.off()
         self.SpeedA.duty(0)
-        self.SpeedB.duty(self.vitesse)
+        self.SpeedB.duty(self.moteur_gauche)
         # self.PinA.on()
         # self.PinB.off()
-        # self.SpeedA.duty(self.vitesse)
-        # self.SpeedB.duty(self.vitesse)
+        # self.SpeedA.duty(self.moteur_droit)
+        # self.SpeedB.duty(self.moteur_gauche)
 
     def a_droite(self):
 
-        # digitalWrite(PinA, LOW)
-        # digitalWrite(PinB, HIGH)
+        # self.PinA.off()
+        # self.PinB.on()
 
         self.dir = DROITE
-        self.patinage()
+        self.start()
         self.PinA.off()
         self.PinB.off()
-        self.SpeedA.duty(self.vitesse)
+        self.SpeedA.duty(self.moteur_droit)
         self.SpeedB.duty(0)
         # self.PinA.off()
         # self.PinB.on()
-        # self.SpeedA.duty(self.vitesse)
-        # self.SpeedB.duty(self.vitesse)
+        # self.SpeedA.duty(self.moteur_droit)
+        # self.SpeedB.duty(self.moteur_gauche)
 
     def en_arriere(self):
         self.PinA.on()
         self.PinB.on()
-        self.SpeedA.duty(self.vitesse)
-        self.SpeedB.duty(self.vitesse)
+        self.SpeedA.duty(self.moteur_droit)
+        self.SpeedB.duty(self.moteur_gauche)
 
     def accelere(self, acceleration):
         self.vitesse += acceleration
@@ -143,7 +173,7 @@ class Robot(object):
 
     def delta(self):
         # difference entre leds long
-        RR = 0
+        value = 0
 
         self.LED1.on()   # turn the LED on(HIGH is the voltage level)
         self.LED2.off()  # turn the LED on(HIGH is the voltage level)
@@ -151,83 +181,76 @@ class Robot(object):
         # delayMicroseconds(300)
 
         for i in range(NB_ITERATION):
-            RR += self.capteur.read()
+            value += self.capteur.read()
 
-        print(RR / NB_ITERATION)
+        print(value / NB_ITERATION)
 
         # wait for a second
 
-        self.LED1.off() # turn the LED off(HIGH is the voltage level)
-        self.LED2.on() # turn the LED on(HIGH is the level)
+        self.LED1.off()    # turn the LED off(HIGH is the voltage level)
+        self.LED2.on()     # turn the LED on(HIGH is the level)
 
         # delayMicroseconds(100)
 
         for i in range(NB_ITERATION):
-            RR -= self.capteur.read()
+            value -= self.capteur.read()
 
-        print(RR / NB_ITERATION)
+        print(value / NB_ITERATION)
 
         self.LED1.off()
         self.LED2.off()
 
-        return (RR / NB_ITERATION)
+        return value / NB_ITERATION
 
     def run(self):
         # temporisation de 2 s pour moteur
-        # analogWrite(SpeedA, 0)
-        analogWrite(SpeedB, 0)
-        vvv = 0
+
+        vitesse = 0
         self.moteur.stop()
-        ddd = self.delta()
+        delta = self.delta()
         self.moteur.start()
         self.now = time.ticks_ms()
-        if abs(ddd) < sensibilite:
-            if dir != AVANT:
-                print(ddd)
+        if abs(delta) < self.sensibilite:
+            if self.moteur.dir != AVANT:
+                print(delta)
                 print("tout droit")
-                dir = AVANT
+                self.moteur.dir = AVANT
                 self.tempoLampe = self.now
-        if ddd > 0:
-            vvv = map(ddd, 0, sensibilite, AA, 0)
-            self.moteur.init(vvv, AA, dir)
-        elif ddd < 0:
-            digitalWrite(PinA, LOW)
-            digitalWrite(PinB, LOW)
-            vvv= map(-ddd, 0, sensibilite, AA, 0)
-            self.moteur.init(AA, vvv, dir)
+            if delta > 0:
+                vitesse = map_vitesse(delta, 0, self.sensibilite, self.moteur.vitesse, 0)
+                self.moteur.init(vitesse, self.moteur.vitesse, self.moteur.dir)
+            elif delta < 0:
+                self.moteur.PinA.off()
+                self.moteur.PinB.off()
+                vitesse = map_vitesse(-delta, 0, self.sensibilite, self.moteur.vitesse, 0)
+                self.moteur.init(self.moteur.vitesse, vitesse, self.moteur.dir)
         else:
-        ddd = ddd / 2
-        if ddd > sensibilite:
-            ddd = sensibilite
-        if ddd < -sensibilite:
-            ddd = -sensibilite
-        if ddd > 0:
-            vvv = map(ddd, 0, sensibilite, 0, AA)
-        if dir != GAUCHE:
-            print(ddd)
-            print("on tourne à gauche")
-            dir = GAUCHE
-            self.tempoLampe = self.now
+            delta = delta / 2
+            if delta > self.sensibilite:
+                delta = self.sensibilite
+            if delta < -self.sensibilite:
+                delta = -self.sensibilite
+            if delta > 0:
+                vitesse = map_vitesse(delta, 0, self.sensibilite, 0, self.moteur.vitesse)
+                if self.moteur.dir != GAUCHE:
+                    print(delta)
+                    print("on tourne à gauche")
+                    self.moteur.dir = GAUCHE
+                    self.tempoLampe = self.now
 
-        # self.moteur.init(AA, vvv, dir)
-        self.moteur.init(AA, AA, dir)
-        } else if (ddd < 0) {
-        vvv = map(-ddd, 0, sensibilite, 0, AA)
-        if (dir != DROITE) {
-        print(ddd)
-        print("on tourne à droite")
-        dir = DROITE
-        self.tempoLampe = self.now
-        }
-        # self.moteur.init(vvv, AA, dir)
-        self.moteur.init(AA, AA, dir)
-        }
-        }
-        if (self.now - self.tempoLampe > self.intervalLampe) {
-        print("on s'arrête")
-        self.moteur.stop()
-        }
-        delay(10)
-        print(" ")
-        print(vvv)
-        print(" ")
+                # self.moteur.init(self.moteur.vitesse, vitesse, self.moteur.dir)
+                self.moteur.init(self.moteur.vitesse, self.moteur.vitesse, self.moteur.dir)
+            elif delta < 0:
+                vitesse = map_vitesse(-delta, 0, self.sensibilite, 0, self.moteur.vitesse)
+                if self.moteur.dir != DROITE:
+                    print(delta, "on tourne à droite")
+                    self.moteur.dir = DROITE
+                    self.tempoLampe = self.now
+                # self.moteur.init(vitesse, self.moteur.vitesse, self.moteur.dir)
+                self.moteur.init(self.moteur.vitesse, self.moteur.vitesse, self.moteur.dir)
+        if (self.now - self.tempoLampe) > self.intervalLampe:
+            print("on s'arrête")
+            self.moteur.stop()
+
+        time.sleep_us(100)
+        print(vitesse)
