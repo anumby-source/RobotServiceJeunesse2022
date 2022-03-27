@@ -1,4 +1,8 @@
-import uasyncio as asyncio
+try:
+    import asyncio
+except:
+    import uasyncio as asyncio
+
 async def bar(x):
     count = 0
     while True:

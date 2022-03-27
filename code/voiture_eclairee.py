@@ -11,6 +11,11 @@ from machine import Pin, PWM
 import esp
 import gc
 
+try:
+    import asyncio
+except:
+    import uasyncio as asyncio
+
 
 ARRIERE = 0            # recule
 DROITE = 1             # tourne à droite
