@@ -1,30 +1,34 @@
-import time
-from machine import ADC
-from machine import Pin, PWM
+import random
+# from graphics import *
+# import uasyncio as asyncio
+import asyncio
 
-"""
-try:
-  import usocket as socket
-except:
-  import socket
+class ASync(object):
+    def __init__(self, name):
+        self.name = name
+        
+    async def bar(self, x):
+        count = 0
+        while True:
+            pause = random.randint(0, 100)/100.0
+            count += 1
+            print(self.name, 'Instance: {} count: {} pause={}'.format(x, count, pause))
+            await asyncio.sleep(pause)  # Pause 1s
 
-import network
+    async def run(self):
+        for x in range(random.randint(3, 6)):
+            asyncio.create_task(self.bar(x))
+        # await asyncio.sleep(10)
 
-import esp
-esp.osdebug(None)
-"""
+a = ASync("a")
+b = ASync("b")
+c = ASync("c")
 
-import gc
-gc.collect()
+asyncio.run(a.run())
+asyncio.run(b.run())
+asyncio.run(c.run())
 
-PinA = Pin(0, Pin.OUT)  # broche enable du L298N pour le premier moteur
-PinB = Pin(2, Pin.OUT)  # broche enable du L298N pour le deuxième moteur
-SpeedA = PWM(Pin(5, Pin.OUT))  # Premier moteur
-SpeedA.freq(1000)
-SpeedB = PWM(Pin(4, Pin.OUT))  # Deuxième moteur
-SpeedB.freq(1000)
-PinA.off()
-PinB.off()
-PinA.read()
+async def main():
+    await asyncio.sleep(10)
 
-
+asyncio.run(main())
