@@ -14,4 +14,15 @@
 - https://docs.micropython.org/en/latest/esp8266/quickref.html#networking
 - https://circuits4you.com/2017/12/21/esp8266-pwm-example/
 - https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/
-- 
+
+https://dl.espressif.com/dl/package_esp32_index.json,http://arduino.esp8266.com/stable/package_esp8266com_index.json
+
+
+echo D6
+trigger D7
+capteur optique:
+A0
+équilibre 3.3v/2.
+
+
+
