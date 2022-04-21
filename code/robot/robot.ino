@@ -62,7 +62,7 @@ void Web::init(Robot* robot)
 {
     this->robot = robot;
 
-    IPAddress apIP(44, 44, 44, 1);          // Définition de l'adresse IP statique.
+    IPAddress apIP(44, 44, 44, 44);         // Définition de l'adresse IP statique.
     // const char *ssid = "RCO";            // Nom du reseau wifi (*** A modifier ***)
     const char *password = "12345678";      // mot de pasensibilitee (*** A modifier ***)
     //ESP8266WebServer server(80);
