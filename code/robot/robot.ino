@@ -6,20 +6,22 @@
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 
-#define STOP 6
-#define AVANCE 2
-#define RECULE 8
-#define DROITE 5
-#define GAUCHE 4
-#define LENT 7
-#define RAPIDE 9
+#define STOP    1
+#define AVANCE  2
+#define RECULE  3
+#define DROITE  4
+#define GAUCHE  5
+#define LENT    6
+#define RAPIDE  7
+#define SENSMIN 8
+#define SENSMAX 9
 
-#define MANUEL 10
+#define MANUEL    10
 #define COLLISION 11
-#define SUIVI 12
+#define SUIVI     12
 
-#define SENSMIN 1
-#define SENSMAX 3
+//                  0   1               2      3                  4         5        6    7   8
+String dirs[9] = { "", "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Droite", "Gauche", "", "", ""};
 
 WiFiServer server(80);
 
@@ -37,7 +39,7 @@ class Robot {
       if (commande == STOP || commande == AVANCE || commande == RECULE || commande == DROITE || commande == GAUCHE) this->dir = commande;
       };
 
-    int get_dir(){
+    int direction(){
       return (this->dir);
     };
 
@@ -63,12 +65,9 @@ void Web::init(Robot* robot)
     this->robot = robot;
 
     IPAddress apIP(44, 44, 44, 44);         // Définition de l'adresse IP statique.
-    // const char *ssid = "RCO";            // Nom du reseau wifi (*** A modifier ***)
-    const char *password = "12345678";      // mot de pasensibilitee (*** A modifier ***)
-    //ESP8266WebServer server(80);
-
+    const char *password = "12345678";      // mot de passe (*** A modifier ***)
     char ssid[30];
-    sprintf(ssid, "RCO_%d", ESP.getChipId());
+    sprintf(ssid, "RCO_%d", ESP.getChipId()); // ceci différencie la connexion pour chaque voiture
 
     // declaration du wifi:
     WiFi.mode(WIFI_AP);
@@ -83,9 +82,6 @@ void Web::init(Robot* robot)
 
 void Web::web_page(WiFiClient client, int commande)
 {
-    //                  0   1     2      3     4         5          6           7       8
-    String dirs[9] = { "", "", "Avant", "", "Gauche", "Droite", "Arr&ecirc;t", "", "Arri&egrave;re"};
-
     String html = String("<!DOCTYPE html> \
 <html> \
 <head> \
@@ -116,7 +112,7 @@ void Web::web_page(WiFiClient client, int commande)
       <input class='echo' id='commande' name='commande'  value='") + commande +
 String("'> \
       <label for='direction'>direction:</label> \
-      <input class='echo' id='direction' name='direction'  value=' ") + dirs[this->robot->get_dir()] +
+      <input class='echo' id='direction' name='direction'  value=' ") + dirs[this->robot->direction()] +
 String("'> \
       <table> \
           <tr> \
