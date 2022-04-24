@@ -33,12 +33,25 @@ class Point(object):
         dy = self.y - other.y
         return np.sqrt(dx*dx + dy*dy)
 
+    def draw(self, canvas, color="green"):
+        x = self.x
+        y = self.y
+        o = zone_dessin.create_oval(x - 4, y - 4, x + 4, y + 4, fill=color, width=2)
+
+    def complex(self):
+        return complex(self.x, self.y)
+
+    def set(self, comp):
+        self.x = comp.real
+        self.y = comp.imag
+
 
 # -----------------------------------------------------------------------------------------
 class Vector(object):
-    def __init__(self, p1, p2):
-        self.p1 = p1
-        self.p2 = p2
+    def __init__(self, p1, p2, label=""):
+        self.label = label
+        self.p1 = p1.__copy__()
+        self.p2 = p2.__copy__()
         dx = p2.x - p1.x
         dy = p2.y - p1.y
         self.r = np.sqrt(dx*dx + dy*dy)
@@ -53,20 +66,31 @@ class Vector(object):
             self.angle += 2*np.pi
 
     def rotate(self, da):
+        pipi = 2* np.pi
+        a = self.angle
         self.angle += da
-        p = Point(self.p1.x, self.p1.y)
-        dp = Point(self.r*np.cos(self.angle),
-                   self.r*np.sin(self.angle))
+        while self.angle >= pipi:
+            self.angle -= pipi
+        while self.angle <= -pipi:
+            self.angle += pipi
+
+        x = np.cos(self.angle)
+        y = np.sin(self.angle)
+        print(self.label, "Vector.rotate angle ", a, " -> ", self.angle, x, y, "p2=", self.p2.x, self.p2.y)
+
+        dp = Point(self.r*x, self.r*y)
+        p = self.p1.__copy__()
         p.moveby(dp)
         self.p2 = p
+        print(self.label, "Vector.rotate => p2=", self.p2.x, self.p2.y)
 
     def unit(self):
-        p1 = self.p1
+        p1 = self.p1.__copy__()
         dp = Point((self.p2.x - self.p1.x) / self.r, (self.p2.y - self.p1.y) / self.r)
         return Vector(p1, dp)
 
     def extend(self):
-        origin = Point(self.p1.x, self.p1.y)
+        origin = self.p1.__copy__()
         x1 = self.p1.x
         y1 = self.p1.y
         x2 = self.p2.x
@@ -81,10 +105,16 @@ class Vector(object):
 
         return Vector(origin, Point(x3, y3))
 
+    def draw(self, canvas, color="black"):
+        canvas.create_line(self.p1.x, self.p1.y, self.p2.x, self.p2.y, fill=color, width=1)
+        self.p1.draw(canvas, color)
+        self.p2.draw(canvas, color)
+
 
 # -----------------------------------------------------------------------------------------
 class Robot(object):
-    def __init__(self):
+    def __init__(self, canvas=None):
+        self.canvas = canvas
         self.angle = 0
         self.w = 10
         self.h = 10
@@ -93,7 +123,26 @@ class Robot(object):
         self.p2 = Point(self.w, -self.h)
         self.p3 = Point(self.w, self.h)
         self.p4 = Point(-self.w, self.h)
+
+        self.droit = Point(0, self.h)
+        self.avant_droit = Point(self.w, self.h)
+
+        self.gauche = Point(0, -self.h)
+        self.avant_gauche = Point(self.w, -self.h)
+
         self.avant = Point(self.w, 0)
+
+    def draw_points(self, color="black"):
+        self.centre.draw(self.canvas, color)
+        self.droit.draw(self.canvas, color)
+        self.canvas.create_line(self.centre.x, self.centre.y, self.droit.x, self.droit.y, fill=color, width=1)
+        self.avant_droit.draw(self.canvas, color)
+        self.canvas.create_line(self.droit.x, self.droit.y, self.avant_droit.x, self.avant_droit.y, fill=color, width=1)
+        self.gauche.draw(self.canvas, color)
+        self.canvas.create_line(self.centre.x, self.centre.y, self.gauche.x, self.gauche.y, fill=color, width=1)
+        self.avant_gauche.draw(self.canvas, color)
+        self.canvas.create_line(self.gauche.x, self.gauche.y, self.avant_gauche.x, self.avant_gauche.y, fill=color, width=1)
+
 
     def moveby(self, dp):
         self.centre.moveby(dp)
@@ -103,21 +152,48 @@ class Robot(object):
         self.p4.moveby(dp)
         self.avant.moveby(dp)
 
+        self.droit.moveby(dp)
+        self.avant_droit.moveby(dp)
+        self.gauche.moveby(dp)
+        self.avant_gauche.moveby(dp)
+
     def rotate(self, da):
-        def turn_point(p):
-            v = Vector(self.centre, p)
-            v.rotate(da)
-            return v.p2
-        self.p1 = turn_point(self.p1)
-        self.p2 = turn_point(self.p2)
-        self.p3 = turn_point(self.p3)
-        self.p4 = turn_point(self.p4)
-        self.avant = turn_point(self.avant)
+        def rot(points, origin, angle):
+            return (points - origin) * np.exp(complex(0, angle)) + origin
+
+        origin = complex(self.centre.x, self.centre.y)
+
+        points = rot(np.array([
+            self.p1.complex(),
+            self.p2.complex(),
+            self.p3.complex(),
+            self.p4.complex(),
+            self.droit.complex(),
+            self.avant_droit.complex(),
+            self.gauche.complex(),
+            self.avant_gauche.complex(),
+            self.avant.complex()]), origin, da)
+
+        self.p1.set(points[0])
+        self.p2.set(points[1])
+        self.p3.set(points[2])
+        self.p4.set(points[3])
+        self.droit.set(points[4])
+        self.avant_droit.set(points[5])
+        self.gauche.set(points[6])
+        self.avant_gauche.set(points[7])
+        self.avant.set(points[8])
 
     def direction(self):
-        v = Vector(Point(self.centre.x, self.centre.y),
-                   Point(self.avant.x, self.avant.y))
-        # return v.unit()
+        v = Vector(self.centre, self.avant)
+        return v
+
+    def direction_droit(self):
+        v = Vector(self.droit, self.avant_droit)
+        return v
+
+    def direction_gauche(self):
+        v = Vector(self.gauche, self.avant_gauche)
         return v
 
     def draw(self, canvas):
@@ -134,9 +210,17 @@ class Robot(object):
         dir = self.direction().extend()
         d = canvas.create_line(dir.p1.x, dir.p1.y, dir.p2.x, dir.p2.y, fill="black", width=1)
 
+        dd = self.direction_droit().extend()
+        dd = canvas.create_line(dd.p1.x, dd.p1.y, dd.p2.x, dd.p2.y, fill="black", width=1)
+
+        dg = self.direction_gauche().extend()
+        dg = canvas.create_line(dg.p1.x, dg.p1.y, dg.p2.x, dg.p2.y, fill="black", width=1)
+
         images.append(p)
         images.append(l)
         images.append(d)
+        images.append(dd)
+        images.append(dg)
 
         return images
 
@@ -265,12 +349,23 @@ def animate(images=None):
     t += 1
     # if t > 100: return
     ext = robot.direction().extend()
+    ext_droit = robot.direction_droit().extend()
+    ext_gauche = robot.direction_gauche().extend()
+
     d = 0
     for s in segments:
-        test, x, y = intersect(s, ext)
-        if test:
-            inter = Point(x, y)
-            d = ext.p1.distance(inter)
+        test1, x1, y1 = intersect(s, ext)
+        test2, x2, y2 = intersect(s, ext_droit)
+        test3, x3, y3 = intersect(s, ext_gauche)
+        if test1 or test2 or test3:
+            # print(test1, test2, test3)
+            inter1 = Point(x1, y1)
+            inter2 = Point(x2, y2)
+            inter3 = Point(x3, y3)
+            d1 = ext.p1.distance(inter1)
+            d2 = ext_droit.p1.distance(inter2)
+            d3 = ext_gauche.p1.distance(inter3)
+            # print(test1, test2, test3, d1, d2, d3)
 
             """
             print("intersect test=", test, x, y, "p1=", s.p1.x, s.p1.y, 
@@ -278,17 +373,22 @@ def animate(images=None):
                   ext.p1.y, "extp2=", ext.p2.x, ext.p2.y)
                   """
             l = zone_dessin.create_line(s.p1.x, s.p1.y, s.p2.x, s.p2.y, fill="red", width=3)
-            o = zone_dessin.create_oval(x - 4, y - 4, x + 4, y + 4, fill="green", width=3)
+            o1 = zone_dessin.create_oval(x1 - 4, y1 - 4, x1 + 4, y1 + 4, fill="green", width=3)
+            o2 = zone_dessin.create_oval(x2 - 4, y2 - 4, x2 + 4, y2 + 4, fill="green", width=3)
+            o3 = zone_dessin.create_oval(x3 - 4, y3 - 4, x3 + 4, y3 + 4, fill="green", width=3)
             images.append(l)
-            images.append(o)
+            images.append(o1)
+            images.append(o2)
+            images.append(o3)
             break
 
-    print("distance=", d)
+    # print("distance=", d)
+    d = min(d1, d2, d3)
     if d > 50:
         u = robot.direction().unit()
         robot.moveby(u.p2)
     else:
-        robot.rotate(t*np.pi/2000)
+        robot.rotate(np.pi/10)
 
     Fenetre.after(200, animate, images)
 
@@ -301,14 +401,19 @@ Fenetre = Tk()
 zone_dessin = Canvas(Fenetre, width=width, height=height, bg="yellow")
 
 contour = Contour(w=width, h=height, canvas=zone_dessin)
-segments = contour.aleatoire(ncoins=15)
 
 # cree le robot et position au centre de l'image avec une orientation aléatoire
-robot = Robot()
+robot = Robot(zone_dessin)
 robot.moveby(contour.centre)
-robot.rotate(np.random.random()*2*np.pi)
-
+#robot.draw_points()
+angle = np.random.random() * 2 * np.pi
+# angle = 0.3 * 2 * np.pi
+robot.rotate(angle)
+# robot.draw_points("red")
 images = robot.draw(zone_dessin)
+
+segments = contour.aleatoire(ncoins=15)
+
 dir = robot.direction()
 
 t = 0
