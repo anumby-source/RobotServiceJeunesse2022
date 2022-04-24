@@ -42,7 +42,6 @@ class Robot {
     int direction(){
       return (this->dir);
     };
-
 };
 
 class Web {
@@ -52,7 +51,7 @@ class Web {
     WiFiClient client();
     int action();
   private:
-    Robot* robot;
+    Robot* robot = NULL;
 };
 
 WiFiClient Web::client()
@@ -196,10 +195,11 @@ int Web::action()
 
   request = "";
   return (commande);
-}
+};
 
 class Motorisation{
   private:
+     Robot* robot = NULL;
      int PinA = 0; // broche enable du L298N pour le premier moteur
      int PinB = 2; //  broche enable du L298N pour le deuxième moteur
      int SpeedA = 5; // Premier moteur
@@ -210,7 +210,8 @@ class Motorisation{
 
   public:
 
-  Motorisation()  {
+  Motorisation(Robot* robot){
+    this->robot = robot;
     pinMode(this->PinA, OUTPUT);
     pinMode(this->PinB, OUTPUT);
     pinMode(this->SpeedA, OUTPUT);
@@ -220,6 +221,7 @@ class Motorisation{
   };
 
   void action(int commande){
+     this->robot->set_commande(commande);
      if (commande == AVANCE) this->avance();
      else if (commande == RECULE) this->recule();
      else if (commande == DROITE) this->droite();
@@ -249,11 +251,13 @@ class Motorisation{
   }
 
   void stop(void)  {
+     this->robot->set_commande(STOP);
       analogWrite(this->SpeedA, 0);
       analogWrite(this->SpeedB, 0);
   };
 
   void avance()  {
+      this->robot->set_commande(AVANCE);
       analogWrite(this->SpeedA, this->vitesse);
       analogWrite(this->SpeedB, this->vitesse);
       digitalWrite(this->PinA, this->avant);
@@ -261,6 +265,7 @@ class Motorisation{
   };
 
   void droite()  {
+      this->robot->set_commande(DROITE);
       analogWrite(this->SpeedA, this->vitesse);
       analogWrite(this->SpeedB, this->vitesse);
       digitalWrite(this->PinA, this->avant);
@@ -268,6 +273,7 @@ class Motorisation{
   };
 
   void gauche()  {
+      this->robot->set_commande(GAUCHE);
       analogWrite(this->SpeedA, this->vitesse);
       analogWrite(this->SpeedB, this->vitesse);
       digitalWrite(this->PinA, this->arriere);
@@ -275,6 +281,7 @@ class Motorisation{
   };
 
   void recule()  {
+      this->robot->set_commande(RECULE);
       analogWrite(this->SpeedA, this->vitesse);
       analogWrite(this->SpeedB, this->vitesse);
       digitalWrite(this->PinA, this->arriere);
@@ -284,9 +291,56 @@ class Motorisation{
 };
 
 
-Robot robot;
+class Ultrason{
+  private:
+    const int trigPin = 12; //D6;
+    const int echoPin = 13; //d7;
+    //define sound speed in cm/uS
+#define SOUND_SPEED 0.034
+    Motorisation* motor = NULL;
+
+  public:
+  Ultrason(Motorisation* motor){
+    pinMode(this->trigPin, OUTPUT); // Sets the trigPin as an Output
+    pinMode(this->echoPin, INPUT); // Sets the echoPin as an Input
+    this->motor = motor;
+  };
+
+  int read(){
+     long duration;
+     digitalWrite(this->trigPin, LOW);
+      delayMicroseconds(2);
+     // Sets the trigPin on HIGH state for 10 micro seconds
+     digitalWrite(this->trigPin, HIGH);
+     delayMicroseconds(10);
+     digitalWrite(this->trigPin, LOW);
+     // Reads the echoPin, returns the sound wave travel time in microseconds
+     duration = pulseIn(this->echoPin, HIGH);
+
+     //   Serial.println(duration * SOUND_SPEED/2);
+     if ((duration < 60000) && (duration > 1)) {   // Calculate the distance
+        return( duration * SOUND_SPEED/2 );
+    } else {
+        return(0);
+    };
+  };
+
+  void action(){
+    int obstacle = this->read();
+    if (obstacle == 0) {}
+    else if (obstacle < 10) { this->motor->stop(); }
+    else if (obstacle < 40){
+      // on contourne l'obstacle
+    };
+  };
+};
+
 Web web;
-Motorisation M;
+Robot robot;
+Motorisation M(&robot);
+
+Ultrason U(&M);
+int Mode = MANUEL;
 
 
 void setup()
@@ -297,8 +351,13 @@ void setup()
 }
 
 void loop()
-{ // temporisation de 2s pour moteur
+{
    int commande = web.action();
    M.action(commande);
+   if (commande == COLLISION) Mode = COLLISION;
+   else if (commande == MANUEL) Mode = MANUEL;
+
+   if (Mode == COLLISION){};
+   
    delay(100);
 }
