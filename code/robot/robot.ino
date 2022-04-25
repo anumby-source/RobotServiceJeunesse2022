@@ -296,6 +296,8 @@ class Ultrason{
     const int trigPin = 12; //D6;
     const int echoPin = 13; //d7;
     //define sound speed in cm/uS
+    const seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
+    const seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
 #define SOUND_SPEED 0.034
     Motorisation* motor = NULL;
 
@@ -325,13 +327,23 @@ class Ultrason{
     };
   };
 
-  void action(){
+  int action(){
     int obstacle = this->read();
     if (obstacle == 0) {}
-    else if (obstacle < 10) { this->motor->stop(); }
-    else if (obstacle < 40){
+    else if (obstacle < this->seuil2) {
+      // on n'a plus la place de tourner
+      this->motor->stop();
+      return (STOP);
+    }
+    else if (obstacle < this->seuil1) {
       // on contourne l'obstacle
+      this->motor->droite();
+    }
+    else {
+      // pas d'obstacle on avance
+      this->motor->avance();
     };
+    return (AVANT);
   };
 };
 
@@ -357,7 +369,10 @@ void loop()
    if (commande == COLLISION) Mode = COLLISION;
    else if (commande == MANUEL) Mode = MANUEL;
 
-   if (Mode == COLLISION){};
+   if (Mode == COLLISION){
+      int retour = U.action();
+      if (retour == STOP) Mode = MANUEL;
+   };
    
    delay(100);
 }
