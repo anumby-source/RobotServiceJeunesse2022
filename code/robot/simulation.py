@@ -11,6 +11,8 @@ from tkinter import *
 import numpy as np
 import cmath
 
+MODE = "COLLISION"
+MODE = "YEUX"
 
 # -----------------------------------------------------------------------------------------
 def rot(points, origin, angle):
@@ -225,17 +227,20 @@ class Robot(object):
         # dir = self.direction().extend()
         # d = canvas.create_line(dir.p1.real, dir.p1.imag, dir.p2.real, dir.p2.imag, fill="black", width=1)
 
-        dd = self.direction_droit().extend()
-        dd = canvas.create_line(dd.p1.real, dd.p1.imag, dd.p2.real, dd.p2.imag, fill="black", width=1)
-
-        dg = self.direction_gauche().extend()
-        dg = canvas.create_line(dg.p1.real, dg.p1.imag, dg.p2.real, dg.p2.imag, fill="black", width=1)
-
         images.append(p)
         images.append(l)
+
+        if MODE == "COLLISION":
+            dd = self.direction_droit().extend()
+            dd = canvas.create_line(dd.p1.real, dd.p1.imag, dd.p2.real, dd.p2.imag, fill="black", width=1)
+
+            dg = self.direction_gauche().extend()
+            dg = canvas.create_line(dg.p1.real, dg.p1.imag, dg.p2.real, dg.p2.imag, fill="black", width=1)
+
+            images.append(dd)
+            images.append(dg)
+
         # images.append(d)
-        images.append(dd)
-        images.append(dg)
 
         return images
 
@@ -248,7 +253,7 @@ class Contour(object):
         self.centre = complex(self.width / 2, self.height / 2)
         self.canvas = canvas
 
-    def aleatoire(self, ncoins):
+    def aleatoire(self, ncoins, mode="Contour"):
         rayon_min = 50
         rayon_max = 200
         angles = np.sort(np.random.random_sample(ncoins) * np.pi * 2)
@@ -274,14 +279,25 @@ class Contour(object):
             else:
                 x2 = int(sommet.real)
                 y2 = int(sommet.imag)
-                print(x1, y1, x2, y2)
+                # print(x1, y1, x2, y2)
                 segs.append(Vector(complex(x1, y1), complex(x2, y2)))
-                self.canvas.create_line(x1, y1, x2, y2, fill="blue", width=3)
                 x1 = x2
                 y1 = y2
 
         segs.append(Vector(complex(x1, y1), complex(x0, y0)))
-        self.canvas.create_line(x1, y1, x0, y0, fill="blue", width=3)
+
+        if mode == "Contour":
+            color = "blue"
+            width = 3
+            capstyle = "butt"
+        else:
+            color = "red"
+            width = 30
+            capstyle = "round"
+
+        for seg in segs:
+            self.canvas.create_line(seg.p1.real, seg.p1.imag, seg.p2.real, seg.p2.imag,
+                                    fill=color, width=width, capstyle=capstyle)
 
         return segs
 
@@ -291,7 +307,18 @@ previous = None
 
 
 # -----------------------------------------------------------------------------------------
-def animate(images=None):
+def get_color(canvas, route, x, y):
+    ids = canvas.find_overlapping(x, y, x, y)
+    #print(",".join([canvas.type(i) for i in ids]))
+    for id in ids:
+        if id in route and canvas.itemcget(id, "fill") == "red":
+            # print("get_color", ids, route, id)
+            return "red"
+    return None, "white"
+
+
+# -----------------------------------------------------------------------------------------
+def animate_collision(images=None):
     global t, previous
     if images is not None:
         for i in images:
@@ -353,7 +380,133 @@ def animate(images=None):
     else:
         robot.rotate(np.pi/10)
 
-    Fenetre.after(200, animate, images)
+    Fenetre.after(200, animate_collision, images)
+
+
+previous_state = -1
+# -----------------------------------------------------------------------------------------
+def animate_yeux(images=None):
+    global t, previous, previous_state
+    if images is not None:
+        for i in images:
+            zone_dessin.delete(i)
+
+    images = robot.draw(zone_dessin)
+    t += 1
+
+    cg = get_color(zone_dessin, route, robot.gauche.real, robot.gauche.imag)
+    cd = get_color(zone_dessin, route, robot.droit.real, robot.droit.imag)
+
+    # print(cg, cd)
+    if cg == "red" and cd == "red":
+        state = 3
+        eye_status = "both eyes on"
+    elif cg == "red":
+        state = 1
+        eye_status = "left eye on"
+    elif cd == "red":
+        state = 2
+        eye_status = "right eye on"
+    else:
+        state = 0
+        eye_status = "off"
+
+    if previous is not None:
+        here = robot.centre
+        zone_dessin.create_line(previous.real, previous.imag, here.real, here.imag, fill="black", width=1)
+
+    previous = robot.centre
+
+    dir = robot.direction()
+
+    action = "???"
+
+    if previous_state == -1:
+        if state == 0:
+            # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
+            action = "avance"
+            u = dir.unit()
+            robot.moveby(u.p2 - robot.centre)
+            state = -1
+    elif previous_state == 3:
+        if state == 1:
+            # on doit tourner pour retrouver la route
+            # jusqu'à tant que state = 3
+            action = "tourne right"
+            robot.rotate(np.pi / 10)
+        if state == 2:
+                # on doit tourner pour retrouver la route
+                # jusqu'à tant que state = 3
+                action = "tourne left"
+                robot.rotate(- np.pi / 10)
+        elif state == 3:
+            # on est sur la route => on continue d'avancer
+            action = "avance"
+            u = dir.unit()
+            robot.moveby(u.p2 - robot.centre)
+        elif state == 0:
+            # on a quitté la route => on doit tourner pour retrouver la route
+            action = "tourne right"
+            robot.rotate(np.pi / 10)
+    elif previous_state == 1:
+        if state == 1 or state == 2 or state == 3:
+            # on entre u on est est entré sur la route => on continue
+            action = "avance"
+            u = dir.unit()
+            robot.moveby(u.p2 - robot.centre)
+        else:
+            # on quitte la route on tourne pour rentrer
+            action = "tourne right"
+            robot.rotate(np.pi / 10)
+    elif previous_state == 2:
+            if state == 1 or state == 2 or state == 3:
+                # on entre u on est est entré sur la route => on continue
+                action = "avance"
+                u = dir.unit()
+                robot.moveby(u.p2 - robot.centre)
+            else:
+                # on quitte la route on tourne pour rentrer
+                action = "tourne left"
+                robot.rotate(- np.pi / 10)
+    elif previous_state == 0:
+        if state == 0:
+            # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
+            action = "tourne right"
+            robot.rotate(np.pi / 10)
+
+    print(previous_state, state, eye_status, action)
+
+    previous_state = state
+
+
+    Fenetre.after(200, animate_yeux, images)
+
+
+"""
+for id in zone_dessin.find_all():
+    print(id, zone_dessin.type(id), zone_dessin.coords(id))
+    if zone_dessin.type(id) == "line":
+        rect = zone_dessin.coords(id)
+        zone_dessin.create_line(rect[0], rect[1], rect[2], rect[3])
+        #zone_dessin.create_rectangle(rect[0], rect[1], rect[2], rect[3])
+"""
+
+def test_find_color():
+    for i in range(100):
+        p = np.random.random_sample(2) * 500
+        x = p[0]
+        y = p[1]
+        id, c = get_color(zone_dessin, x, y)
+
+        if id is not None and zone_dessin.type(id) == "line":
+            rect = zone_dessin.coords(id)
+            zone_dessin.create_rectangle(rect[0], rect[1], rect[2], rect[3])
+            print("color at ", x, y, c, "id=", id, zone_dessin.type(id))
+            draw_point(complex(x, y), zone_dessin, color="green")
+        else:
+            # print("color at ", x, y, c)
+            # draw_point(complex(x, y), zone_dessin, color="white")
+            pass
 
 
 # -----------------------------------------------------------------------------------------
@@ -375,10 +528,25 @@ robot.rotate(angle)
 # robot.draw_points("red")
 images = robot.draw(zone_dessin)
 
-segments = contour.aleatoire(ncoins=15)
+segments = contour.aleatoire(ncoins=15, mode="Route")
 
+# test_find_color()
 
-animate(images)
+route = []
+
+for id in zone_dessin.find_all():
+    if zone_dessin.type(id) == "line":
+        # print(id, zone_dessin.type(id), zone_dessin.coords(id), zone_dessin.itemcget(id, "fill"))
+        c = zone_dessin.itemcget(id, "fill")
+        # rect = zone_dessin.coords(id)
+        # zone_dessin.create_line(rect[0], rect[1], rect[2], rect[3])
+        #zone_dessin.create_rectangle(rect[0], rect[1], rect[2], rect[3])
+        route.append(id)
+
+if MODE == "YEUX";
+    animate_yeux(images)
+if MODE == "COLLISION":
+    animate_collision(images)
 
 zone_dessin.pack()
 
