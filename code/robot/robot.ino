@@ -296,8 +296,8 @@ class Ultrason{
     const int trigPin = 12; //D6;
     const int echoPin = 13; //d7;
     //define sound speed in cm/uS
-    const seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
-    const seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
+    const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
+    const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
 #define SOUND_SPEED 0.034
     Motorisation* motor = NULL;
 
@@ -343,7 +343,7 @@ class Ultrason{
       // pas d'obstacle on avance
       this->motor->avance();
     };
-    return (AVANT);
+    return (AVANCE);
   };
 };
 
