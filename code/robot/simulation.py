@@ -146,9 +146,11 @@ class Robot(object):
 
         self.droit = complex(0, self.h)
         self.avant_droit = complex(self.w, self.h)
+        self.optique_droit = complex(2*self.w, self.h)
 
         self.gauche = complex(0, -self.h)
         self.avant_gauche = complex(self.w, -self.h)
+        self.optique_gauche = complex(2*self.w, -self.h)
 
         self.avant = complex(self.w, 0)
 
@@ -174,8 +176,10 @@ class Robot(object):
 
         self.droit += dp
         self.avant_droit += dp
+        self.optique_droit += dp
         self.gauche += dp
         self.avant_gauche += dp
+        self.optique_gauche += dp
 
     def rotate(self, da):
         origin = self.centre
@@ -187,8 +191,10 @@ class Robot(object):
             self.p4,
             self.droit,
             self.avant_droit,
+            self.optique_droit,
             self.gauche,
             self.avant_gauche,
+            self.optique_gauche,
             self.avant]), origin, da)
 
         self.p1 = points[0]
@@ -197,9 +203,11 @@ class Robot(object):
         self.p4 = points[3]
         self.droit = points[4]
         self.avant_droit = points[5]
-        self.gauche = points[6]
-        self.avant_gauche = points[7]
-        self.avant = points[8]
+        self.optique_droit = points[6]
+        self.gauche = points[7]
+        self.avant_gauche = points[8]
+        self.optique_gauche = points[9]
+        self.avant = points[10]
 
     def direction(self):
         v = Vector(self.centre, self.avant)
@@ -212,6 +220,22 @@ class Robot(object):
     def direction_gauche(self):
         v = Vector(self.gauche, self.avant_gauche)
         return v
+
+    def tourne_droite(self):
+        angle = 0.05 * 2 * np.pi
+        self.rotate(angle)
+
+    def tourne_gauche(self):
+        angle = - 0.05 * 2 * np.pi
+        self.rotate(angle)
+
+    def avance(self, canvas):
+        p0 = self.centre
+        u = self.direction().unit()
+        robot.moveby(u.p2 - self.centre)
+        p1 = self.centre
+        canvas.create_line(p0.real, p0.imag, p1.real, p1.imag, fill="black", width=1)
+
 
     def draw(self, canvas):
         images = []
@@ -394,8 +418,8 @@ def animate_yeux(images=None):
     images = robot.draw(zone_dessin)
     t += 1
 
-    cg = get_color(zone_dessin, route, robot.gauche.real, robot.gauche.imag)
-    cd = get_color(zone_dessin, route, robot.droit.real, robot.droit.imag)
+    cg = get_color(zone_dessin, route, robot.optique_gauche.real, robot.optique_gauche.imag)
+    cd = get_color(zone_dessin, route, robot.optique_droit.real, robot.optique_droit.imag)
 
     # print(cg, cd)
     if cg == "red" and cd == "red":
@@ -417,62 +441,72 @@ def animate_yeux(images=None):
 
     previous = robot.centre
 
-    dir = robot.direction()
-
     action = "???"
 
     if previous_state == -1:
         if state == 0:
             # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
             action = "avance"
-            u = dir.unit()
-            robot.moveby(u.p2 - robot.centre)
+            robot.avance(zone_dessin)
             state = -1
     elif previous_state == 3:
         if state == 1:
             # on doit tourner pour retrouver la route
             # jusqu'à tant que state = 3
-            action = "tourne right"
-            robot.rotate(np.pi / 10)
+            action = "tourne left"
+            robot.tourne_gauche()
         if state == 2:
                 # on doit tourner pour retrouver la route
                 # jusqu'à tant que state = 3
-                action = "tourne left"
-                robot.rotate(- np.pi / 10)
+                action = "tourne right"
+                robot.tourne_droite()
         elif state == 3:
             # on est sur la route => on continue d'avancer
             action = "avance"
-            u = dir.unit()
-            robot.moveby(u.p2 - robot.centre)
+            robot.avance(zone_dessin)
         elif state == 0:
             # on a quitté la route => on doit tourner pour retrouver la route
             action = "tourne right"
-            robot.rotate(np.pi / 10)
+            robot.tourne_droite()
     elif previous_state == 1:
-        if state == 1 or state == 2 or state == 3:
+        if state == 1:
+            # on entre u on est est entré sur la route => on continue
+            action = "tourne left"
+            robot.tourne_gauche()
+        elif state == 2:
+            # on entre u on est est entré sur la route => on continue
+            action = "tourne right"
+            robot.tourne_droite()
+        elif state == 3:
             # on entre u on est est entré sur la route => on continue
             action = "avance"
-            u = dir.unit()
-            robot.moveby(u.p2 - robot.centre)
+            robot.avance(zone_dessin)
         else:
             # on quitte la route on tourne pour rentrer
-            action = "tourne right"
-            robot.rotate(np.pi / 10)
+            action = "tourne left"
+            robot.tourne_gauche()
     elif previous_state == 2:
-            if state == 1 or state == 2 or state == 3:
+            if state == 1:
                 # on entre u on est est entré sur la route => on continue
-                action = "avance"
-                u = dir.unit()
-                robot.moveby(u.p2 - robot.centre)
+                action = "tourne left"
+                robot.tourne_gauche()
+            elif state == 2:
+                # on entre u on est est entré sur la route => on continue
+                action = "tourne right"
+                robot.tourne_droite()
+            elif state == 3:
+                    # on entre u on est est entré sur la route => on continue
+                    action = "avance"
+                    robot.avance(zone_dessin)
             else:
                 # on quitte la route on tourne pour rentrer
-                action = "tourne left"
-                robot.rotate(- np.pi / 10)
+                action = "tourne right"
+                robot.tourne_droite()
     elif previous_state == 0:
         if state == 0:
             # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
             action = "tourne right"
-            robot.rotate(np.pi / 10)
+            robot.tourne_droite()
 
     print(previous_state, state, eye_status, action)
 
@@ -521,12 +555,20 @@ contour = Contour(w=width, h=height, canvas=zone_dessin)
 # cree le robot et position au centre de l'image avec une orientation aléatoire
 robot = Robot(zone_dessin)
 robot.moveby(contour.centre)
-# robot.draw_points()
-angle = np.random.random() * 2 * np.pi
-# angle = 0.3 * 2 * np.pi
-robot.rotate(angle)
-# robot.draw_points("red")
 images = robot.draw(zone_dessin)
+
+def test_moving():
+    for i in range(20): robot.avance(zone_dessin)
+    for i in range(5): robot.tourne_droite()
+    for i in range(20): robot.avance(zone_dessin)
+    for i in range(3): robot.tourne_gauche()
+    for i in range(20): robot.avance(zone_dessin)
+
+    robot.draw(zone_dessin)
+    draw_point(robot.optique_droit, zone_dessin, "green")
+    draw_point(robot.optique_gauche, zone_dessin, "red")
+
+# test_moving()
 
 segments = contour.aleatoire(ncoins=15, mode="Route")
 
@@ -543,9 +585,9 @@ for id in zone_dessin.find_all():
         #zone_dessin.create_rectangle(rect[0], rect[1], rect[2], rect[3])
         route.append(id)
 
-if MODE == "YEUX";
+if MODE == "YEUX":
     animate_yeux(images)
-if MODE == "COLLISION":
+elif MODE == "COLLISION":
     animate_collision(images)
 
 zone_dessin.pack()
