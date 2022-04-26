@@ -12,7 +12,7 @@ import numpy as np
 import cmath
 
 MODE = "COLLISION"
-MODE = "YEUX"
+# MODE = "YEUX"
 
 # -----------------------------------------------------------------------------------------
 def rot(points, origin, angle):
@@ -104,8 +104,12 @@ class Vector(object):
             return self.p1.real == other.p1.real
         else:
             # droites quelconques
-            x = -(b1 - b2) / (m1 - m2)
-            y = m1 * x + b1
+            try:
+                x = -(b1 - b2) / (m1 - m2)
+                y = m1 * x + b1
+            except:
+                x = 0
+                y = 0
 
         # est-ce que le point d'intersection est à l'interieur des segments ?
         xv1p1 = self.p1.real
@@ -570,7 +574,8 @@ def test_moving():
 
 # test_moving()
 
-segments = contour.aleatoire(ncoins=15, mode="Route")
+# segments = contour.aleatoire(ncoins=15, mode="Route")
+segments = contour.aleatoire(ncoins=15)
 
 # test_find_color()
 
