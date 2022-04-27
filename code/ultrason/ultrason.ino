@@ -1,7 +1,10 @@
-#include <dummy.h>
+#include <Arduino_BuiltIn.h>
 
-const int trigPin = 12; //D6;
-const int echoPin = 13; //d7;
+
+const int trigPin = 13; //D7;
+const int echoPin = 12; //d6;
+//const int trigPin = D6;
+//const int echoPin = D7;
 //define sound speed in cm/uS
 #define SOUND_SPEED 0.034
 

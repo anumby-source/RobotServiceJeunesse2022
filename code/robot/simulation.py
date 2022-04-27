@@ -12,7 +12,7 @@ import numpy as np
 import cmath
 
 MODE = "COLLISION"
-# MODE = "YEUX"
+MODE = "YEUX"
 
 # -----------------------------------------------------------------------------------------
 def rot(points, origin, angle):
@@ -411,10 +411,33 @@ def animate_collision(images=None):
     Fenetre.after(200, animate_collision, images)
 
 
-previous_state = -1
+starting = 0
+off = 1
+left_eye_on = 2
+right_eye_on = 3
+both_eyes_on = 4
+
+previous_state = starting
 # -----------------------------------------------------------------------------------------
 def animate_yeux(images=None):
     global t, previous, previous_state
+
+    def get_colors():
+        cg = get_color(zone_dessin, route, robot.optique_gauche.real, robot.optique_gauche.imag)
+        cd = get_color(zone_dessin, route, robot.optique_droit.real, robot.optique_droit.imag)
+        return cg, cd
+
+    def cherche():
+        gauche = np.random.random() < 0.5
+        while True:
+            if gauche:
+                robot.tourne_gauche()
+            else:
+                robot.tourne_droite()
+            cg, cd = get_colors()
+            if cg == "red" and cd == "red":
+                return both_eyes_on
+
     if images is not None:
         for i in images:
             zone_dessin.delete(i)
@@ -422,22 +445,26 @@ def animate_yeux(images=None):
     images = robot.draw(zone_dessin)
     t += 1
 
-    cg = get_color(zone_dessin, route, robot.optique_gauche.real, robot.optique_gauche.imag)
-    cd = get_color(zone_dessin, route, robot.optique_droit.real, robot.optique_droit.imag)
+    cg, cd = get_colors()
 
-    # print(cg, cd)
+    def eye_status(state):
+        s = ["starting", "off", "left eye on", "right eye on", "both eyes on"]
+        return s[state]
+
+    previous_eye_status = eye_status(previous_state)
+
     if cg == "red" and cd == "red":
-        state = 3
-        eye_status = "both eyes on"
+        state = both_eyes_on
     elif cg == "red":
-        state = 1
-        eye_status = "left eye on"
+        state = left_eye_on
     elif cd == "red":
-        state = 2
-        eye_status = "right eye on"
+        state = right_eye_on
     else:
-        state = 0
-        eye_status = "off"
+        state = off
+
+    # print(cg, cd, state)
+
+    new_eye_status = eye_status(state)
 
     if previous is not None:
         here = robot.centre
@@ -447,75 +474,90 @@ def animate_yeux(images=None):
 
     action = "???"
 
-    if previous_state == -1:
-        if state == 0:
-            # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
-            action = "avance"
-            robot.avance(zone_dessin)
-            state = -1
-    elif previous_state == 3:
-        if state == 1:
-            # on doit tourner pour retrouver la route
-            # jusqu'à tant que state = 3
+    if previous_state == starting:
+        # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la rou
+        action = "avance"
+        robot.avance(zone_dessin)
+        if state != both_eyes_on:
+            state = starting
+    elif previous_state == left_eye_on:
+        if state == left_eye_on:
+            # on entre ou on est est entré sur la route => on continue
             action = "tourne left"
             robot.tourne_gauche()
-        if state == 2:
-                # on doit tourner pour retrouver la route
-                # jusqu'à tant que state = 3
-                action = "tourne right"
-                robot.tourne_droite()
-        elif state == 3:
-            # on est sur la route => on continue d'avancer
-            action = "avance"
-            robot.avance(zone_dessin)
-        elif state == 0:
-            # on a quitté la route => on doit tourner pour retrouver la route
-            action = "tourne right"
-            robot.tourne_droite()
-    elif previous_state == 1:
-        if state == 1:
+        elif state == right_eye_on:
             # on entre u on est est entré sur la route => on continue
-            action = "tourne left"
-            robot.tourne_gauche()
-        elif state == 2:
-            # on entre u on est est entré sur la route => on continue
-            action = "tourne right"
-            robot.tourne_droite()
-        elif state == 3:
+            # action = "tourne right"
+            # robot.tourne_droite()
+            action = "cherche"
+            state = cherche()
+        elif state == both_eyes_on:
             # on entre u on est est entré sur la route => on continue
             action = "avance"
             robot.avance(zone_dessin)
         else:
             # on quitte la route on tourne pour rentrer
+            action = "cherche"
+            state = cherche()
+    elif previous_state == right_eye_on:
+        if state == left_eye_on:
+            # on entre u on est est entré sur la route => on continue
+            # action = "tourne left"
+            # robot.tourne_gauche()
+            action = "cherche"
+            state = cherche()
+        elif state == right_eye_on:
+            # on entre u on est est entré sur la route => on continue
+            action = "tourne right"
+            robot.tourne_droite()
+        elif state == both_eyes_on:
+            # on entre u on est est entré sur la route => on continue
+            action = "avance"
+            robot.avance(zone_dessin)
+        else:
+            # on quitte la route on tourne pour rentrer
+            action = "cherche"
+            state = cherche()
+    elif previous_state == both_eyes_on:
+        if state == left_eye_on:
+            # on doit tourner pour retrouver la route
+            # jusqu'à tant que state = 3
             action = "tourne left"
             robot.tourne_gauche()
-    elif previous_state == 2:
-            if state == 1:
-                # on entre u on est est entré sur la route => on continue
-                action = "tourne left"
-                robot.tourne_gauche()
-            elif state == 2:
-                # on entre u on est est entré sur la route => on continue
-                action = "tourne right"
-                robot.tourne_droite()
-            elif state == 3:
-                    # on entre u on est est entré sur la route => on continue
-                    action = "avance"
-                    robot.avance(zone_dessin)
-            else:
-                # on quitte la route on tourne pour rentrer
-                action = "tourne right"
-                robot.tourne_droite()
-    elif previous_state == 0:
-        if state == 0:
+        if state == right_eye_on:
+            # on doit tourner pour retrouver la route
+            # jusqu'à tant que state = 3
+            action = "tourne right"
+            robot.tourne_droite()
+        elif state == both_eyes_on:
+            # on est sur la route => on continue d'avancer
+            action = "avance"
+            robot.avance(zone_dessin)
+        elif state == off:
+            # on a quitté la route => on doit tourner pour retrouver la route
+            action = "tourne right"
+            robot.tourne_droite()
+    elif previous_state == off:
+        if state == off:
             # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
             action = "tourne right"
             robot.tourne_droite()
+        elif state == left_eye_on:
+            # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
+            action = "tourne left"
+            robot.tourne_gauche()
+        elif state == right_eye_on:
+            # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
+            action = "tourne right"
+            robot.tourne_droite()
+        elif state == both_eyes_on:
+            # on n'est pas sur la route => on continue d'avancer jusqu'à retrouver la route
+            action = "avance"
+            robot.avance(zone_dessin)
 
-    print(previous_state, state, eye_status, action)
+    print(previous_eye_status, "->", new_eye_status, "=>", action)
 
     previous_state = state
-
 
     Fenetre.after(200, animate_yeux, images)
 
@@ -574,8 +616,12 @@ def test_moving():
 
 # test_moving()
 
-# segments = contour.aleatoire(ncoins=15, mode="Route")
-segments = contour.aleatoire(ncoins=15)
+if MODE == "YEUX":
+    mode_contour = "Route"
+elif MODE == "COLLISION":
+    mode_contour = "Contour"
+
+segments = contour.aleatoire(ncoins=15, mode=mode_contour)
 
 # test_find_color()
 

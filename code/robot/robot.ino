@@ -293,8 +293,8 @@ class Motorisation{
 
 class Ultrason{
   private:
-    const int trigPin = 12; //D6;
-    const int echoPin = 13; //d7;
+    const int trigPin = 13; //D7;
+    const int echoPin = 12; //d6;
     //define sound speed in cm/uS
     const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
     const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
