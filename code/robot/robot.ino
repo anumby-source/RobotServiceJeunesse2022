@@ -1,5 +1,8 @@
 //
-// Essais de préparation du l'interface Web augmenté
+// Code complet pour le Robot pour l'événement Service Jeunesse 2022
+//
+// le coeur du code est hérité du code développé par Arnaud
+// Reformatté et structuré pour l'algorithmique en C++ par Chris
 //
 
 #include <ESP8266WiFi.h>
