@@ -32,7 +32,6 @@ class Robot {
   public:
     int initial ; // valeur initiale du capteur balance lumière
     int valeur;
-    int AA = 600; // target Speed
     int sensibilite ; // sensibilité
     int commande = 0;
     int dir = STOP;
@@ -203,24 +202,25 @@ int Web::action()
 class Motorisation{
   private:
      Robot* robot = NULL;
-     int PinA = 0; // broche enable du L298N pour le premier moteur
-     int PinB = 2; //  broche enable du L298N pour le deuxième moteur
-     int SpeedA = 5; // Premier moteur
-     int SpeedB = 4; // Deuxième moteur
+     int pin_droite = 0; // broche enable du L298N pour le premier moteur
+     int pin_gauche = 2; //  broche enable du L298N pour le deuxième moteur
+     int speed_droite = 5; // Premier moteur
+     int speed_gauche = 4; // Deuxième moteur
      int avant = HIGH;
      int arriere = LOW;
-     int vitesse = 700;
 
   public:
+     int vitesse_max = 700;
+     int vitesse_min = 300;
 
   Motorisation(Robot* robot){
     this->robot = robot;
-    pinMode(this->PinA, OUTPUT);
-    pinMode(this->PinB, OUTPUT);
-    pinMode(this->SpeedA, OUTPUT);
-    pinMode(this->SpeedB, OUTPUT);
-    digitalWrite(this->PinA, this->avant);
-    digitalWrite(this->PinB, this->avant);
+    pinMode(this->pin_droite, OUTPUT);
+    pinMode(this->pin_gauche, OUTPUT);
+    pinMode(this->speed_droite, OUTPUT);
+    pinMode(this->speed_gauche, OUTPUT);
+    digitalWrite(this->pin_droite, this->avant);
+    digitalWrite(this->pin_gauche, this->avant);
   };
 
   void action(int commande){
@@ -234,61 +234,68 @@ class Motorisation{
      else if (commande == RAPIDE) this->rapide();
   };
 
+  void init(int vitesse_droite, int vitesse_gauche){
+      this->stop();
+      this->robot->set_commande(AVANCE);
+      digitalWrite(this->pin_droite, this->avant);
+      digitalWrite(this->pin_gauche, this->avant);
+      analogWrite(this->speed_droite, vitesse_droite);
+      analogWrite(this->speed_gauche, vitesse_gauche);
+  };
+
   void bip(void)  { // test moteur
-      digitalWrite(this->PinA, this->avant);
-      digitalWrite(this->PinB, this->avant);
-      analogWrite(this->SpeedA, this->vitesse);
-      analogWrite(this->SpeedB, this->vitesse);
+      digitalWrite(this->pin_droite, this->avant);
+      digitalWrite(this->pin_gauche, this->avant);
+      analogWrite(this->speed_droite, this->vitesse_max);
+      analogWrite(this->speed_gauche, this->vitesse_max);
       delay(100);
-      analogWrite(this->SpeedA, 0);
-      analogWrite(this->SpeedB, 0);
+      analogWrite(this->speed_droite, 0);
+      analogWrite(this->speed_gauche, 0);
       delay(400);
   };
 
   void lent(){
-      this->vitesse = 300;
   }
 
   void rapide(){
-      this->vitesse = 700;
   }
 
   void stop(void)  {
-     this->robot->set_commande(STOP);
-      analogWrite(this->SpeedA, 0);
-      analogWrite(this->SpeedB, 0);
+      this->robot->set_commande(STOP);
+      analogWrite(this->speed_droite, 0);
+      analogWrite(this->speed_gauche, 0);
   };
 
   void avance()  {
       this->robot->set_commande(AVANCE);
-      analogWrite(this->SpeedA, this->vitesse);
-      analogWrite(this->SpeedB, this->vitesse);
-      digitalWrite(this->PinA, this->avant);
-      digitalWrite(this->PinB, this->avant);
+      analogWrite(this->speed_droite, this->vitesse_max);
+      analogWrite(this->speed_gauche, this->vitesse_max);
+      digitalWrite(this->pin_droite, this->avant);
+      digitalWrite(this->pin_gauche, this->avant);
   };
 
   void droite()  {
       this->robot->set_commande(DROITE);
-      analogWrite(this->SpeedA, this->vitesse);
-      analogWrite(this->SpeedB, this->vitesse);
-      digitalWrite(this->PinA, this->avant);
-      digitalWrite(this->PinB, this->arriere);
+      analogWrite(this->speed_droite, this->vitesse_max);
+      analogWrite(this->speed_gauche, this->vitesse_max);
+      digitalWrite(this->pin_droite, this->avant);
+      digitalWrite(this->pin_gauche, this->arriere);
   };
 
   void gauche()  {
       this->robot->set_commande(GAUCHE);
-      analogWrite(this->SpeedA, this->vitesse);
-      analogWrite(this->SpeedB, this->vitesse);
-      digitalWrite(this->PinA, this->arriere);
-      digitalWrite(this->PinB, this->avant);
+      analogWrite(this->speed_droite, this->vitesse_max);
+      analogWrite(this->speed_gauche, this->vitesse_max);
+      digitalWrite(this->pin_droite, this->arriere);
+      digitalWrite(this->pin_gauche, this->avant);
   };
 
   void recule()  {
       this->robot->set_commande(RECULE);
-      analogWrite(this->SpeedA, this->vitesse);
-      analogWrite(this->SpeedB, this->vitesse);
-      digitalWrite(this->PinA, this->arriere);
-      digitalWrite(this->PinB, this->arriere);
+      analogWrite(this->speed_droite, this->vitesse_max);
+      analogWrite(this->speed_gauche, this->vitesse_max);
+      digitalWrite(this->pin_droite, this->arriere);
+      digitalWrite(this->pin_gauche, this->arriere);
   };
 
 };
@@ -296,37 +303,38 @@ class Motorisation{
 
 class Ultrason{
   private:
-    const int trigPin = 13; //D7;
-    const int echoPin = 12; //d6;
+#define SOUND_SPEED 0.034
+    const int trigger = 13; //D7;
+    const int echo = 12; //d6;
     //define sound speed in cm/uS
     const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
     const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
-#define SOUND_SPEED 0.034
     Motorisation* motor = NULL;
 
   public:
   Ultrason(Motorisation* motor){
-    pinMode(this->trigPin, OUTPUT); // Sets the trigPin as an Output
-    pinMode(this->echoPin, INPUT); // Sets the echoPin as an Input
+    pinMode(this->trigger, OUTPUT); // Sets the trigger as an Output
+    pinMode(this->echo, INPUT); // Sets the echo as an Input
     this->motor = motor;
   };
 
   int read(){
      long duration;
-     digitalWrite(this->trigPin, LOW);
+     digitalWrite(this->trigger, LOW);
       delayMicroseconds(2);
-     // Sets the trigPin on HIGH state for 10 micro seconds
-     digitalWrite(this->trigPin, HIGH);
+     // Sets the trigger on HIGH state for 10 micro seconds
+     digitalWrite(this->trigger, HIGH);
      delayMicroseconds(10);
-     digitalWrite(this->trigPin, LOW);
-     // Reads the echoPin, returns the sound wave travel time in microseconds
-     duration = pulseIn(this->echoPin, HIGH);
+     digitalWrite(this->trigger, LOW);
+     // Reads the echo, returns the sound wave travel time in microseconds
+     duration = pulseIn(this->echo, HIGH);
 
      //   Serial.println(duration * SOUND_SPEED/2);
-     if ((duration < 60000) && (duration > 1)) {   // Calculate the distance
-        return( duration * SOUND_SPEED/2 );
+     if ((duration < 60000) && (duration > 1)) {
+        // Calcule la distance quand la lecture est vraisemblable
+        return (duration * SOUND_SPEED/2);
     } else {
-        return(0);
+        return (0);
     };
   };
 
@@ -350,12 +358,125 @@ class Ultrason{
   };
 };
 
+class Optique{
+private:
+    Robot* robot = NULL;
+    Motorisation* motor = NULL;
+    int iterations  = 100;   // itérations de la fonction delta
+    int gauche = 0;          // le capteur de gauche DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
+    int droite = 0;          // le capteur de droite DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
+    int capteur = 0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
+    int sensibilite = 0;     // seuil de sensibilite droite/gauche
+
+public:
+   Optique(Robot* robot, Motorisation* motor){
+       this->robot = robot;
+       this->motor = motor;
+   };
+
+   void set_droite(){
+       digitalWrite(this->droite, HIGH);   // turn the LED on (HIGH is the voltage level)
+       digitalWrite(this->gauche, LOW);   // turn the LED on (HIGH is the voltage level)
+   };
+
+   void set_gauche(){
+       digitalWrite(this->droite, LOW);   // turn the LED on (HIGH is the voltage level)
+       digitalWrite(this->gauche, HIGH);   // turn the LED on (HIGH is the voltage level)
+   };
+
+   long lire_droite(){
+       long valeur = 0;
+       int i = this->iterations;
+       set_droite();
+       while (i--) valeur += analogRead(this->capteur);
+       return (valeur);
+   };
+   long lire_gauche(){
+       long valeur = 0;
+       int i = this->iterations;
+       set_gauche();
+       while (i--) valeur += analogRead(this->capteur);
+       return (valeur);
+   };
+
+   long delta(){
+      // mesure la différence entre le capteur de droite et le capteur de gauche
+      // si le capteur de droite est > au capteur de gauche => delta > 0
+       long valeur = 0;
+
+       valeur = lire_droite();
+       valeur -= lire_droite();
+
+       digitalWrite(this->droite, LOW);   // turn the LED on (HIGH is the voltage level)
+       digitalWrite(this->gauche, LOW);
+
+       return (valeur / this->iterations);
+   };
+
+   void action(){
+       int vitesse;
+       int dir = 0;
+
+       this->motor->stop();
+
+       int delta = this->delta();
+       this->motor->avance();
+
+       if (abs(delta) < this->sensibilite)  {
+          // pas de différence notable
+          if (this->robot->dir != AVANCE) {
+             // on remet le robot en marche avant
+             // Serial.println(delta);
+             // Serial.println("tout droit");
+             this->robot->set_commande(AVANCE);
+          }
+
+          if (delta > 0 ) {
+             // optique droite + => il faut redresser vers la droite
+             // on freine sur la roue droite donc on tourne à droit
+             // on calcule la vitesse à appliquer proportinnelle au delta
+             vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
+             this->motor->init(vitesse, this->motor->vitesse_max);
+          } else if (delta < 0) {
+             // optique gauche + => il faut redresser vers la gauche
+             // on freine sur la roue gauche donc on tourne à gauche
+             // on calcule la vitesse à appliquer proportinnelle au delta
+             vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
+             this->motor->init(this->motor->vitesse_max, vitesse);
+          }
+       } else {
+          // delta important: on le renormalise
+          delta = delta / 2;
+          if (delta > this->sensibilite) delta = this->sensibilite;
+          else if (delta < -this->sensibilite) delta = -this->sensibilite;
+
+          if (delta > 0) {
+             // optique droite + => il faut redresser vers la droite
+             // on freine sur la roue gauche donc on tourne à gauche
+             // on calcule la vitesse à appliquer proportinnelle au delta
+             vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
+             this->motor->droite();
+             this->motor->init(this->motor->vitesse_max, vitesse);
+          } else if (delta < 0) {
+             // optique gauche + => il faut redresser vers la gauche
+             // on freine sur la roue droite donc on tourne à droit
+             // on calcule la vitesse à appliquer proportinnelle au delta
+             vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
+             this->motor->gauche();
+             this->motor->init(vitesse, this->motor->vitesse_max);
+          }
+       }
+    }
+};
+
 Web web;
 Robot robot;
 Motorisation M(&robot);
-
 Ultrason U(&M);
+Optique O(&robot, &M);
+
 int Mode = MANUEL;
+
 
 
 void setup()
@@ -377,5 +498,9 @@ void loop()
       if (retour == STOP) Mode = MANUEL;
    };
    
+   if (Mode == SUIVI){
+      O.action();
+   };
+
    delay(100);
 }
