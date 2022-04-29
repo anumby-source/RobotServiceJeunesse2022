@@ -1,9 +1,9 @@
 //
-// Code complet pour le Robot pour l'événement Service Jeunesse 2022
+// Code auto test des capteurs pour le Robot pour l'événement Service Jeunesse 2022
 //
 // le coeur du code est hérité du code développé par Arnaud
 // Reformatté et structuré pour l'algorithmique en C++ par Chris
-//
+
 
 #include <ESP8266WiFi.h>
 #include <DNSServer.h>
@@ -199,6 +199,7 @@ int Web::action()
   return (commande);
 };
 
+//-------------------- MOTEUR -------------------------------
 class Motorisation{
   private:
      Robot* robot = NULL;
@@ -210,7 +211,7 @@ class Motorisation{
      int arriere = LOW;
 
   public:
-     int vitesse_max = 700;
+     int vitesse_max = 500;
      int vitesse_min = 300;
 
   Motorisation(Robot* robot){
@@ -299,7 +300,7 @@ class Motorisation{
   };
 
 };
-
+//-------------------- ULTRASON  -------------------------------
 
 class Ultrason{
   private:
@@ -357,16 +358,16 @@ class Ultrason{
     return (AVANCE);
   };
 };
-
+//-------------------- OPTIQUE -------------------------------
 class Optique{
 private:
     Robot* robot = NULL;
     Motorisation* motor = NULL;
     int iterations  = 100;   // itérations de la fonction delta
-    int gauche = 0;          // le capteur de gauche DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
-    int droite = 0;          // le capteur de droite DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
-    int capteur = 0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
-    int sensibilite = 0;     // seuil de sensibilite droite/gauche
+    int gauche = D8;          // le capteur de gauche DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
+    int droite = D8;          // le capteur de droite DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
+    int capteur = A0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
+    int sensibilite = 50;     // seuil de sensibilite droite/gauche
 
 public:
    Optique(Robot* robot, Motorisation* motor){
@@ -476,20 +477,47 @@ Ultrason U(&M);
 Optique O(&robot, &M);
 
 int Mode = MANUEL;
+// int Mode = COLLISION; // initialisation
 
+
+/* ------------------AUTO-TEST ----------------
+
+1 bip : moteur
+2 bip : capteur optique branché
+3 bip : capteur optique à l'équilibre
+
+si la distance ultrason est inférieure à seuil2 : passage en manuel
+const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
+const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
+
+*/
+void auto_test(){
+    M.bip();
+    Serial.println("lire droite");
+    Serial.println(O.lire_droite());
+    if (O.lire_droite() > 10) M.bip();
+    if (abs(O.lire_droite() - 512) < 100 ) M.bip();
+    while(1) Serial.println(O.lire_droite() - 512);
+
+    // while(1) Serial.println(U.read());
+};
 
 
 void setup()
 {
-   Serial.begin(9600);
+  unsigned long currentMillis = millis();
+   Serial.begin(115200);
+   Serial.println("ROBOT");
    web.init(&robot);
-   M.bip();
+   auto_test();
 }
 
 void loop()
 {
    int commande = web.action();
    M.action(commande);
+        Serial.println("commande :");
+        Serial.println(commande);
    if (commande == COLLISION) Mode = COLLISION;
    else if (commande == MANUEL) Mode = MANUEL;
 
