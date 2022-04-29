@@ -502,19 +502,25 @@ void loop()
    Serial.println("commande :");
    Serial.println(commande);
 
-   if (commande == COLLISION) Mode = COLLISION;
-   if (commande == SUIVI) Mode = SUIVI;
-   if (commande == MANUEL) Mode = MANUEL;
-   if (commande == BALANCE) O.balance_des_blancs();
+   if (commande == BALANCE)
+   {
+       O.balance_des_blancs();
+       Mode = MANUEL;
+   }
+   else
+   {
+       if (commande == COLLISION) Mode = COLLISION;
+       else if (commande == SUIVI) Mode = SUIVI;
+       else if (commande == MANUEL) Mode = MANUEL;
 
-   if (Mode == COLLISION){
-      int retour = U.action();
-      if (retour == STOP) Mode = MANUEL;
-   };
-   
-   if (Mode == SUIVI){
-      O.action();
-   };
+       if (Mode == COLLISION){
+          int retour = U.action();
+          if (retour == STOP) Mode = MANUEL;
+       }
+       else if (Mode == SUIVI){
+          O.action();
+       };
+   }
 
    delay(100);
 }
