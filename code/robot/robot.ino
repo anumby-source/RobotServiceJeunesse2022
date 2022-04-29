@@ -368,7 +368,6 @@ private:
     Motorisation* motor = NULL;
     int capteur = A0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
     int balance_faite = 0;
-    long balance = 1024/2;
 
 public:
     int sensibilite = 50;     // seuil de sensibilite droite/gauche
@@ -422,14 +421,16 @@ public:
              // optique droite + => il faut redresser vers la droite
              // on freine sur la roue droite donc on tourne à droit
              // on calcule la vitesse à appliquer proportinnelle au delta
-             vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             this->motor->init(vitesse, this->motor->vitesse_max);
+             // vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
+             // this->motor->init(vitesse, this->motor->vitesse_max);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           } else if (delta < 0) {
              // optique gauche + => il faut redresser vers la gauche
              // on freine sur la roue gauche donc on tourne à gauche
              // on calcule la vitesse à appliquer proportinnelle au delta
              vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             this->motor->init(this->motor->vitesse_max, vitesse);
+             // this->motor->init(this->motor->vitesse_max, vitesse);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           }
        } else {
           // delta important: on le renormalise
@@ -443,14 +444,16 @@ public:
              // on calcule la vitesse à appliquer proportinnelle au delta
              vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
              this->motor->droite();
-             this->motor->init(this->motor->vitesse_max, vitesse);
+             //this->motor->init(this->motor->vitesse_max, vitesse);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           } else if (delta < 0) {
              // optique gauche + => il faut redresser vers la gauche
              // on freine sur la roue droite donc on tourne à droit
              // on calcule la vitesse à appliquer proportinnelle au delta
              vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
              this->motor->gauche();
-             this->motor->init(vitesse, this->motor->vitesse_max);
+             // this->motor->init(vitesse, this->motor->vitesse_max);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           }
        }
     }
@@ -483,7 +486,7 @@ void auto_test(){
     Serial.println(O.lecture());
     if (O.lecture() > 10) M.bip();
     if (abs(O.lecture() - 512) < 100 ) M.bip();
-    while(1) Serial.println(O.lecture() - 512);
+    // while(1) Serial.println(O.lecture() - 512);
 
     // while(1) Serial.println(U.read());
 };
@@ -501,8 +504,8 @@ void loop()
 {
    int commande = web.action();
    M.action(commande);
-   Serial.println("commande :");
-   Serial.println(commande);
+   //Serial.println("commande :");
+   //Serial.println(commande);
 
    if (commande == BALANCE)
    {
@@ -513,15 +516,25 @@ void loop()
    }
    else
    {
+       //Serial.print("Mode ");
+       //Serial.println(Mode);
+       
        if (commande == COLLISION) Mode = COLLISION;
        else if (commande == SUIVI) Mode = SUIVI;
        else if (commande == MANUEL) Mode = MANUEL;
+       else if (commande == STOP)
+       {
+        Mode = MANUEL;
+        M.stop();
+       }
 
        if (Mode == COLLISION){
           int retour = U.action();
           if (retour == STOP) Mode = MANUEL;
        }
        else if (Mode == SUIVI){
+          //Serial.print("delta entre les capteurs");
+          Serial.println(O.lecture() - O.balance);
           O.action();
        };
    }
