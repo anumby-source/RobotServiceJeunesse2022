@@ -493,18 +493,18 @@ int Mode = MANUEL;
 void setup()
 {
   unsigned long currentMillis = millis();
-  int aaa;
    Serial.begin(115200);
        Serial.println("ROBOT");
    web.init(&robot);
    M.bip();
      Serial.println("lire droite");
-     Serial.println(aaa=O.lire_droite());
-  //    while(1) Serial.println(aaa=O.lire_droite());
-  // test optique 
-      if (aaa>10) M.bip();
+     Serial.println(O.lire_droite());
+     if (O.lire_droite()>10) M.bip();
+     if ( abs( O.lire_droite() - 512 )< 100 ) M.bip();
+     while(1) Serial.println(O.lire_droite() - 512);
 
-      while(1) Serial.println(aaa=U.read());
+    
+     // while(1) Serial.println(U.read());
 }
 
 void loop()
