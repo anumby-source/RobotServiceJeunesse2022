@@ -250,8 +250,8 @@ class Motorisation{
   void bip(void)  { // test moteur
       digitalWrite(this->pin_droite, this->avant);
       digitalWrite(this->pin_gauche, this->avant);
-      analogWrite(this->speed_droite, this->vitesse_max);
-      analogWrite(this->speed_gauche, this->vitesse_max);
+      analogWrite(this->speed_droite, this->vitesse_min);
+      analogWrite(this->speed_gauche, this->vitesse_min);
       delay(100);
       analogWrite(this->speed_droite, 0);
       analogWrite(this->speed_gauche, 0);
