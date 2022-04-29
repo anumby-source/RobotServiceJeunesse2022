@@ -367,11 +367,13 @@ private:
     Robot* robot = NULL;
     Motorisation* motor = NULL;
     int capteur = A0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
-    int sensibilite = 50;     // seuil de sensibilite droite/gauche
     int balance_faite = 0;
     long balance = 1024/2;
 
 public:
+    int sensibilite = 50;     // seuil de sensibilite droite/gauche
+    long balance = 1024/2;
+
    Optique(Robot* robot, Motorisation* motor){
        this->robot = robot;
        this->motor = motor;
@@ -505,6 +507,8 @@ void loop()
    if (commande == BALANCE)
    {
        O.balance_des_blancs();
+       Serial.print("Balance des blancs");
+       Serial.println(O.balance);
        Mode = MANUEL;
    }
    else
