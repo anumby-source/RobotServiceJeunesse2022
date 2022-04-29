@@ -22,6 +22,7 @@
 #define MANUEL    10
 #define COLLISION 11
 #define SUIVI     12
+#define BALANCE   13
 
 //                  0   1               2      3                  4         5        6    7   8
 String dirs[9] = { "", "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Droite", "Gauche", "", "", ""};
@@ -120,6 +121,7 @@ String("'> \
               <td> <button name='LED0' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suiveur </button></td> \
+              <td> <button name='LED0' class='cmd' value='") + String(BALANCE) + String("' type='submit'> Blancs </button></td> \
           </tr> \
       </table> \
   </form> \
@@ -172,6 +174,7 @@ int Web::action()
   if (request.indexOf("LED0=" + String(MANUEL)) != -1) commande = MANUEL;
   else if (request.indexOf("LED0=" + String(COLLISION)) != -1) commande = COLLISION;
   else if (request.indexOf("LED0=" + String(SUIVI)) != -1) commande = SUIVI;
+  else if (request.indexOf("LED0=" + String(BALANCE)) != -1) commande = BALANCE;
 
   //-----------------PAVE HAUT------------
   else if (request.indexOf("LED0=" + String(SENSMIN)) != -1) commande = SENSMIN;
@@ -363,11 +366,10 @@ class Optique{
 private:
     Robot* robot = NULL;
     Motorisation* motor = NULL;
-    int iterations  = 100;   // itérations de la fonction delta
-    int gauche = D8;          // le capteur de gauche DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
-    int droite = D8;          // le capteur de droite DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
     int capteur = A0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
     int sensibilite = 50;     // seuil de sensibilite droite/gauche
+    int balance_faite = 0;
+    long balance = 1024/2;
 
 public:
    Optique(Robot* robot, Motorisation* motor){
@@ -375,43 +377,25 @@ public:
        this->motor = motor;
    };
 
-   void set_droite(){
-       digitalWrite(this->droite, HIGH);   // turn the LED on (HIGH is the voltage level)
-       digitalWrite(this->gauche, LOW);   // turn the LED on (HIGH is the voltage level)
+   long lecture(){
+       return (analogRead(this->capteur));
    };
 
-   void set_gauche(){
-       digitalWrite(this->droite, LOW);   // turn the LED on (HIGH is the voltage level)
-       digitalWrite(this->gauche, HIGH);   // turn the LED on (HIGH is the voltage level)
-   };
-
-   long lire_droite(){
-       long valeur = 0;
-       int i = this->iterations;
-       set_droite();
-       while (i--) valeur += analogRead(this->capteur);
-       return (valeur);
-   };
-   long lire_gauche(){
-       long valeur = 0;
-       int i = this->iterations;
-       set_gauche();
-       while (i--) valeur += analogRead(this->capteur);
-       return (valeur);
+   void balance_des_blancs(){
+       if (this->balance_faite) return;
+       // positionner une feuille blanche très près du capteur optique
+       long valeur = this->lecture();
+       this->balance = valeur;
+       this->balance_faite = 1;
    };
 
    long delta(){
       // mesure la différence entre le capteur de droite et le capteur de gauche
       // si le capteur de droite est > au capteur de gauche => delta > 0
-       long valeur = 0;
 
-       valeur = lire_droite();
-       valeur -= lire_droite();
+       long valeur = this->lecture() - this->balance;
 
-       digitalWrite(this->droite, LOW);   // turn the LED on (HIGH is the voltage level)
-       digitalWrite(this->gauche, LOW);
-
-       return (valeur / this->iterations);
+       return (valeur);
    };
 
    void action(){
@@ -494,10 +478,10 @@ const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place d
 void auto_test(){
     M.bip();
     Serial.println("lire droite");
-    Serial.println(O.lire_droite());
-    if (O.lire_droite() > 10) M.bip();
-    if (abs(O.lire_droite() - 512) < 100 ) M.bip();
-    while(1) Serial.println(O.lire_droite() - 512);
+    Serial.println(O.lecture());
+    if (O.lecture() > 10) M.bip();
+    if (abs(O.lecture() - 512) < 100 ) M.bip();
+    while(1) Serial.println(O.lecture() - 512);
 
     // while(1) Serial.println(U.read());
 };
@@ -505,7 +489,6 @@ void auto_test(){
 
 void setup()
 {
-  unsigned long currentMillis = millis();
    Serial.begin(115200);
    Serial.println("ROBOT");
    web.init(&robot);
@@ -516,10 +499,13 @@ void loop()
 {
    int commande = web.action();
    M.action(commande);
-        Serial.println("commande :");
-        Serial.println(commande);
+   Serial.println("commande :");
+   Serial.println(commande);
+
    if (commande == COLLISION) Mode = COLLISION;
-   else if (commande == MANUEL) Mode = MANUEL;
+   if (commande == SUIVI) Mode = SUIVI;
+   if (commande == MANUEL) Mode = MANUEL;
+   if (commande == BALANCE) O.balance_des_blancs();
 
    if (Mode == COLLISION){
       int retour = U.action();
