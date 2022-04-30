@@ -88,7 +88,7 @@ void Web::web_page(WiFiClient client, int commande)
 <html> \
 <head> \
 <style> \
-  .echo {width: 50px;} \
+  .echo {width: 50px; font-size: 150%;} \
   .cmd { padding:10px 10px 10px 10px; \
             margin:10px; \
             width:100%;  \
@@ -120,7 +120,7 @@ String("'> \
           <tr> \
               <td> <button name='LED0' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
-              <td> <button name='LED0' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suiveur </button></td> \
+              <td> <button name='LED0' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suivi </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(BALANCE) + String("' type='submit'> Blancs </button></td> \
           </tr> \
       </table> \
