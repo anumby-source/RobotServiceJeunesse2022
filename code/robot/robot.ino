@@ -26,8 +26,11 @@
 
 //                  0   1               2      3                  4         5        6    7   8
 String dirs[9] = { "", "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Droite", "Gauche", "", "", ""};
+String text_cmd[14] = { "", "STOP", "AVANCE", "RECULE", "DROITE", "GAUCHE", "LENT", "RAPIDE", "SENSMIN", "SENSMAX", "MANUEL", "COLLISION", "SUIVI", "BALANCE"};
+String text_mode[3] = { "MANUEL", "COLLISION", "SUIVI"};
 
 WiFiServer server(80);
+int Mode = MANUEL;
 
 
 //-------------------- ROBOT -------------------------------
@@ -41,7 +44,7 @@ class Robot {
 
     void set_commande(int commande){
       this->commande = commande;
-      if (commande == STOP || commande == AVANCE || commande == RECULE || commande == DROITE || commande == GAUCHE) this->dir = commande;
+      if (commande == STOP || commande == AVANCE || commande == RECULE) this->dir = commande;
       };
 
     int direction(){
@@ -53,7 +56,7 @@ class Robot {
 //-------------------- WEB -------------------------------
 class Web {
   public:
-    void init(Robot* robot);
+    void init(int id, Robot* robot);
     void web_page(WiFiClient client, int commande);
     WiFiClient client();
     int action();
@@ -66,14 +69,20 @@ WiFiClient Web::client()
    return (server.available());
 }
 
-void Web::init(Robot* robot)
+void Web::init(int id, Robot* robot)
 {
     this->robot = robot;
 
     IPAddress apIP(44, 44, 44, 44);         // Définition de l'adresse IP statique.
     const char *password = "12345678";      // mot de passe (*** A modifier ***)
     char ssid[30];
-    sprintf(ssid, "RCO_%d", ESP.getChipId()); // ceci différencie la connexion pour chaque voiture
+    //sprintf(ssid, "RCO_%d", ESP.getChipId()); // ceci différencie la connexion pour chaque voiture
+    sprintf(ssid, "RCO_%d", id); // ceci différencie la connexion pour chaque voiture
+
+    Serial.print("Initialise le réseau ");
+    Serial.print(ssid);
+    Serial.print(" adresse ");
+    Serial.println(apIP);
 
     // declaration du wifi:
     WiFi.mode(WIFI_AP);
@@ -92,7 +101,7 @@ void Web::web_page(WiFiClient client, int commande)
 <html> \
 <head> \
 <style> \
-  .echo {width: 50px; font-size: 150%;} \
+  .echo {width: 100px; font-size: 150%;} \
   .cmd { padding:10px 10px 10px 10px; \
             margin:10px; \
             width:100%;  \
@@ -115,7 +124,10 @@ void Web::web_page(WiFiClient client, int commande)
 </h1> \
   <form> \
       <label for='commande'>commande:</label> \
-      <input class='echo' id='commande' name='commande'  value='") + commande +
+      <input class='echo' id='commande' name='commande'  value='") + text_cmd[commande] +
+String("'> \
+      <label for='mode'>mode:</label> \
+      <input class='echo' id='mode' name='mode'  value='") + text_mode[Mode - MANUEL] +
 String("'> \
       <label for='direction'>direction:</label> \
       <input class='echo' id='direction' name='direction'  value=' ") + dirs[this->robot->direction()] +
@@ -134,13 +146,22 @@ String("'> \
           <TR> \
               <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
               <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
-              <TD> </TD> \
           </TR> \
+      </TABLE> \
+      <TABLE> \
           <TR> \
               <TD> <button name='LED0' class='button' value='") + String(GAUCHE) + String("' type='submit'> Gauche </button></TD> \
               <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
               <TD> <button name='LED0' class='button' value='") + String(DROITE) + String("' type='submit'> Droite </button></TD> \
           </TR>\
+      </TABLE> \
+  </form> \
+  </center>\
+</head> \
+</html>");
+
+/*
+
           <TR> \
               <TD> <p class='param'> Sensibilit&eacute; </p></TD> \
               <TD> <button name='LED0' class='param' value='") + String(SENSMIN) + String("' type='submit'> << </button></TD> \
@@ -151,11 +172,8 @@ String("'> \
               <TD> <button name='LED0' class='param' value='") + String(LENT) + String("' type='submit'> Lent </button></TD> \
               <TD> <button name='LED0' class='param' value='") + String(RAPIDE) + String("' type='submit'> Rapide </button></TD> \
           </TR> \
-      </TABLE> \
-  </form> \
-  </center>\
-</head> \
-</html>");
+
+*/
 
       client.print(html);
 }
@@ -190,11 +208,17 @@ int Web::action()
   else if (request.indexOf("LED0=" + String(RECULE)) != -1) commande = RECULE;
   else if (request.indexOf("LED0=" + String(RAPIDE)) != -1)  commande = RAPIDE;
 
+  this->robot->set_commande(commande);
+
+  if (commande == COLLISION) Mode = COLLISION;
+  else if (commande == SUIVI) Mode = SUIVI;
+  else if (commande == MANUEL) Mode = MANUEL;
+  else if (commande == STOP) Mode = MANUEL;
+  else if (commande == BALANCE) Mode = MANUEL;
+
   // Serial.print("commande = "
   // Serial.println(commande);
 
-  this->robot->set_commande(commande);
-  
   this->web_page(client, commande);
 
   request = "";
@@ -208,8 +232,8 @@ class Motorisation{
      Robot* robot = NULL;
      int pin_droite = 0; // broche enable du L298N pour le premier moteur
      int pin_gauche = 2; //  broche enable du L298N pour le deuxième moteur
-     int speed_droite = 5; // Premier moteur
-     int speed_gauche = 4; // Deuxième moteur
+     int speed_droite = 4; // Premier moteur
+     int speed_gauche = 5; // Deuxième moteur
      int en_avant = HIGH;  // sens de rotation du moteur
      int en_arriere = LOW;
 
@@ -240,15 +264,17 @@ class Motorisation{
   };
 
   void init(int vitesse_droite, int vitesse_gauche){
-      this->stop();
-      this->robot->set_commande(AVANCE);
-      digitalWrite(this->pin_droite, this->en_avant);
-      digitalWrite(this->pin_gauche, this->en_avant);
+      Serial.println("Motorisation> init");
+      // this->stop();
+      // this->robot->set_commande(AVANCE);
+      // digitalWrite(this->pin_droite, this->en_avant);
+      // digitalWrite(this->pin_gauche, this->en_avant);
       analogWrite(this->speed_droite, vitesse_droite);
       analogWrite(this->speed_gauche, vitesse_gauche);
   };
 
   void bip(void)  { // test moteur
+      Serial.println("Motorisation> bip");
       digitalWrite(this->pin_droite, this->en_avant);
       digitalWrite(this->pin_gauche, this->en_avant);
       analogWrite(this->speed_droite, this->vitesse_min);
@@ -266,12 +292,14 @@ class Motorisation{
   }
 
   void stop(void)  {
+      Serial.println("Motorisation> stop");
       this->robot->set_commande(STOP);
       analogWrite(this->speed_droite, 0);
       analogWrite(this->speed_gauche, 0);
   };
 
   void avance()  {
+      Serial.println("Motorisation> avance");
       this->robot->set_commande(AVANCE);
       analogWrite(this->speed_droite, this->vitesse_max);
       analogWrite(this->speed_gauche, this->vitesse_max);
@@ -280,42 +308,47 @@ class Motorisation{
   };
 
   void droite()  {
+      Serial.println("Motorisation> droite");
       analogWrite(this->speed_droite, 0);
       analogWrite(this->speed_gauche, this->vitesse_max);
       if (this->robot->dir == AVANCE)
       {
         digitalWrite(this->pin_droite, this->en_avant);
         digitalWrite(this->pin_gauche, this->en_avant);
-        delay(10);
+        delay(1000);
         this->avance();
       }
       else if (this->robot->dir == RECULE) {
         digitalWrite(this->pin_droite, this->en_arriere);
         digitalWrite(this->pin_gauche, this->en_arriere);
+        delay(1000);
         this->recule();
       }
       else this->stop();
   };
 
   void gauche()  {
+      Serial.println("Motorisation> gauche");
       analogWrite(this->speed_droite, this->vitesse_max);
       analogWrite(this->speed_gauche, 0);
       if (this->robot->dir == AVANCE)
       {
         digitalWrite(this->pin_droite, this->en_avant);
         digitalWrite(this->pin_gauche, this->en_avant);
-        delay(10);
+        delay(1000);
         this->avance();
       }
       else if (this->robot->dir == RECULE) {
         digitalWrite(this->pin_droite, this->en_arriere);
         digitalWrite(this->pin_gauche, this->en_arriere);
+        delay(1000);
         this->recule();
       }
       else this->stop();
   };
 
   void recule()  {
+      Serial.println("Motorisation> recule");
       this->robot->set_commande(RECULE);
       analogWrite(this->speed_droite, this->vitesse_max);
       analogWrite(this->speed_gauche, this->vitesse_max);
@@ -430,7 +463,7 @@ public:
        int vitesse;
        int dir = 0;
 
-       this->motor->stop();
+       // this->motor->stop();
 
        int delta = this->delta();
        this->motor->avance();
@@ -466,8 +499,6 @@ Motorisation M(&robot);
 Ultrason U(&M);
 Optique O(&robot, &M);
 
-int Mode = MANUEL;
-
 
 /* ------------------AUTO-TEST ----------------
 
@@ -492,52 +523,79 @@ void auto_test(){
 };
 
 
+int id = 0;
+int done = 0;
+
+
 void setup()
 {
    Serial.begin(115200);
    Serial.println("ROBOT");
-   web.init(&robot);
    auto_test();
+
+    delay(2000);
+ 
+    Serial.println("");
+    Serial.println("donnez votre id ");
 }
+
+int read_id(){
+    if(Serial.available()){
+        while (done == 0){
+          String t = Serial.readStringUntil('\n');
+          id = t.toInt();
+          if (id > 0){
+              Serial.print("id=");
+              Serial.println(id);
+              done = 1;
+              return (id);
+            }
+        }
+    }
+ }
 
 void loop()
 {
-   int commande = web.action();
-   M.action(commande);
-   //Serial.println("commande :");
-   //Serial.println(commande);
-
-   if (commande == BALANCE)
-   {
-       O.balance_des_blancs();
-       Serial.print("Balance des blancs");
-       Serial.println(O.balance);
-       Mode = MANUEL;
+   if (done == 0) {
+     id = read_id();
+     web.init(id, &robot);
    }
-   else
-   {
-       //Serial.print("Mode ");
-       //Serial.println(Mode);
-       
-       if (commande == COLLISION) Mode = COLLISION;
-       else if (commande == SUIVI) Mode = SUIVI;
-       else if (commande == MANUEL) Mode = MANUEL;
-       else if (commande == STOP)
-       {
-        Mode = MANUEL;
-        M.stop();
-       }
+   else {
+     int commande = web.action();
+  
+     if (commande > 0) {
+        Serial.print("commande :");
+        Serial.println(commande);
+     }
+  
+     if (commande == BALANCE)
+     {
+         O.balance_des_blancs();
+         Serial.print("Balance des blancs");
+         Serial.println(O.balance);
+     }
+  
+     //Serial.print("Mode ");
+     //Serial.println(Mode);
+     
+     if (commande == STOP) M.stop();
+  
+     if (Mode == MANUEL){
+        M.action(commande);
+     }
+     else if (Mode == COLLISION){
+        int retour = U.action();
+        if (retour == STOP) Mode = MANUEL;
+     }
+     else if (Mode == SUIVI){
+        //Serial.print("delta entre les capteurs");
+        Serial.println(O.delta());
+        O.action();
+     };
+  
+     delay(100);
 
-       if (Mode == COLLISION){
-          int retour = U.action();
-          if (retour == STOP) Mode = MANUEL;
-       }
-       else if (Mode == SUIVI){
-          //Serial.print("delta entre les capteurs");
-          Serial.println(O.delta());
-          O.action();
-       };
+   
    }
 
-   delay(100);
 }

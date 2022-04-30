@@ -8,3 +8,6 @@ Robot.ino: Changement de la logique pour les rotations:
 - on effectue les rotation soit en avant soit en arrière selon le sens de déplacement courant
 
 Robot.ino: Simplification de l'algo pour le Capt.Photo.Sens.
+
+Saisie manuelle de l'id réseau (c'est un entier > 0) au démarrage de l'application par le Serial input
+
