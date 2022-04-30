@@ -128,6 +128,16 @@ String("'> \
   <form> \
       <TABLE> \
           <TR> \
+              <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
+              <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
+              <TD> </TD> \
+          </TR> \
+          <TR> \
+              <TD> <button name='LED0' class='button' value='") + String(GAUCHE) + String("' type='submit'> Gauche </button></TD> \
+              <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
+              <TD> <button name='LED0' class='button' value='") + String(DROITE) + String("' type='submit'> Droite </button></TD> \
+          </TR>\
+          <TR> \
               <TD> <p class='param'> Sensibilit&eacute; </p></TD> \
               <TD> <button name='LED0' class='param' value='") + String(SENSMIN) + String("' type='submit'> << </button></TD> \
               <TD> <button name='LED0' class='param' value='") + String(SENSMAX) + String("' type='submit'> >> </button></TD> \
@@ -137,21 +147,6 @@ String("'> \
               <TD> <button name='LED0' class='param' value='") + String(LENT) + String("' type='submit'> Lent </button></TD> \
               <TD> <button name='LED0' class='param' value='") + String(RAPIDE) + String("' type='submit'> Rapide </button></TD> \
           </TR> \
-          <TR> \
-              <TD> </TD> \
-              <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
-              <TD> </TD> \
-          </TR> \
-          <TR> \
-              <TD> <button name='LED0' class='button' value='") + String(GAUCHE) + String("' type='submit'> Gauche </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(DROITE) + String("' type='submit'> Droite </button></TD> \
-          </TR>\
-          <TR> \
-              <TD> </TD> \
-              <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
-              <TD> </TD> \
-          </TR>\
       </TABLE> \
   </form> \
   </center>\
@@ -370,7 +365,7 @@ private:
     int balance_faite = 0;
 
 public:
-    int sensibilite = 50;     // seuil de sensibilite droite/gauche
+    int sensibilite = 10;     // seuil de sensibilite droite/gauche
     long balance = 1024/2;
 
    Optique(Robot* robot, Motorisation* motor){
@@ -445,7 +440,7 @@ public:
              vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
              this->motor->droite();
              //this->motor->init(this->motor->vitesse_max, vitesse);
-             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
+             //this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           } else if (delta < 0) {
              // optique gauche + => il faut redresser vers la gauche
              // on freine sur la roue droite donc on tourne à droit
@@ -453,7 +448,7 @@ public:
              vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
              this->motor->gauche();
              // this->motor->init(vitesse, this->motor->vitesse_max);
-             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
+             //this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           }
        }
     }
