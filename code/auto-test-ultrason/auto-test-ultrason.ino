@@ -487,13 +487,8 @@ void auto_test(){
     Serial.println("lire droite");
     Serial.println(O.lecture());
     if (O.lecture() > 10) M.bip();
-    if (abs(O.lecture() - 512) < 100 ) {
-       M.bip();
-       O.balance_des_blancs();
-       Serial.print("Balance des blancs");
-       Serial.println(O.balance);
-    }
-    while(1) Serial.println(O.delta());
+    if (abs(O.lecture() - 512) < 100 ) M.bip();
+    // while(1) Serial.println(O.lecture() - 512);
 
      while(flag) {
           int retour = U.action();
@@ -513,6 +508,7 @@ void setup()
    web.init(&robot);
    auto_test();
 }
+
 void loop()
 {
    int commande = web.action();
@@ -522,8 +518,9 @@ void loop()
 
    if (commande == BALANCE)
    {
-
-
+       O.balance_des_blancs();
+       Serial.print("Balance des blancs");
+       Serial.println(O.balance);
        Mode = MANUEL;
    }
    else
@@ -550,5 +547,6 @@ void loop()
           O.action();
        };
    }
+
    delay(100);
 }
