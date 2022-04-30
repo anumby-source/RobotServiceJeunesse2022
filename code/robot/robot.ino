@@ -29,6 +29,8 @@ String dirs[9] = { "", "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Droite", "Gauc
 
 WiFiServer server(80);
 
+
+//-------------------- ROBOT -------------------------------
 class Robot {
   public:
     int initial ; // valeur initiale du capteur balance lumière
@@ -47,6 +49,8 @@ class Robot {
     };
 };
 
+
+//-------------------- WEB -------------------------------
 class Web {
   public:
     void init(Robot* robot);
@@ -197,6 +201,7 @@ int Web::action()
   return (commande);
 };
 
+
 //-------------------- MOTEUR -------------------------------
 class Motorisation{
   private:
@@ -319,15 +324,17 @@ class Motorisation{
   };
 
 };
-//-------------------- ULTRASON  -------------------------------
 
+
+//-------------------- ULTRASON  -------------------------------
 class Ultrason{
-  private:
+//define sound speed in cm/uS
 #define SOUND_SPEED 0.034
-    const int trigger = 13; //D7;
-    const int echo = 12; //d6;
-    //define sound speed in cm/uS
-    const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
+
+  private:
+    const int trigger = 13; // D7;
+    const int echo = 12;    // D6;
+    const int seuil1 = 40;  // si on est > seuil1 on avance, sinon on tourne à droite
     const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
     Motorisation* motor = NULL;
 
@@ -341,7 +348,7 @@ class Ultrason{
   int read(){
      long duration;
      digitalWrite(this->trigger, LOW);
-      delayMicroseconds(2);
+     delayMicroseconds(2);
      // Sets the trigger on HIGH state for 10 micro seconds
      digitalWrite(this->trigger, HIGH);
      delayMicroseconds(10);
@@ -349,7 +356,7 @@ class Ultrason{
      // Reads the echo, returns the sound wave travel time in microseconds
      duration = pulseIn(this->echo, HIGH);
 
-     //   Serial.println(duration * SOUND_SPEED/2);
+     // Serial.println(duration * SOUND_SPEED/2);
      if ((duration < 60000) && (duration > 1)) {
         // Calcule la distance quand la lecture est vraisemblable
         return (duration * SOUND_SPEED/2);
@@ -377,17 +384,24 @@ class Ultrason{
     return (AVANCE);
   };
 };
+
 //-------------------- OPTIQUE -------------------------------
+/*
+ * Les deux capteurs photo-sensibles (CPS) sont connectés entre eux à travers un pont de 2 résistances identiques
+ * La lecture se fait sur le point milieu du pont de résistances
+ * La valeur lue est dans la gamme [0..1024]
+ * Lorsque les leux CPS reçoivent la même lumière, la valeur lue sera donc 512
+ */
 class Optique{
 private:
     Robot* robot = NULL;
     Motorisation* motor = NULL;
-    int capteur = A0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
+    int capteur = A0;         // lecture
     int balance_faite = 0;
 
 public:
     int sensibilite = 10;     // seuil de sensibilite droite/gauche
-    long balance = 1024/2;
+    long balance = 1024/2;    // par défaut. En faisant la balance des blancs on peut ajuster cette valeur
 
    Optique(Robot* robot, Motorisation* motor){
        this->robot = robot;
@@ -399,20 +413,17 @@ public:
    };
 
    void balance_des_blancs(){
-       if (this->balance_faite) return;
        // positionner une feuille blanche très près du capteur optique
-       long valeur = this->lecture();
-       this->balance = valeur;
+       this->balance = this->lecture();
        this->balance_faite = 1;
    };
 
    long delta(){
       // mesure la différence entre le capteur de droite et le capteur de gauche
-      // si le capteur de droite est > au capteur de gauche => delta > 0
+      // delta > 0 => lumière à droite
+      // delta < 0 => lumière à gauche
 
-       long valeur = this->lecture() - this->balance;
-
-       return (valeur);
+       return (this->balance - this->lecture());
    };
 
    void action(){
@@ -424,53 +435,27 @@ public:
        int delta = this->delta();
        this->motor->avance();
 
+       // on calcule la vitesse à appliquer proportinnelle au delta
+       vitesse = map(abs(delta), 0, 512, 0, this->motor->vitesse_max);
+
        if (abs(delta) < this->sensibilite)  {
           // pas de différence notable
           if (this->robot->dir != AVANCE) {
              // on remet le robot en marche avant
              // Serial.println(delta);
              // Serial.println("tout droit");
-             this->robot->set_commande(AVANCE);
-          }
-
-          if (delta > 0 ) {
-             // optique droite + => il faut redresser vers la droite
-             // on freine sur la roue droite donc on tourne à droit
-             // on calcule la vitesse à appliquer proportinnelle au delta
-             // vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             // this->motor->init(vitesse, this->motor->vitesse_max);
-             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
-          } else if (delta < 0) {
-             // optique gauche + => il faut redresser vers la gauche
-             // on freine sur la roue gauche donc on tourne à gauche
-             // on calcule la vitesse à appliquer proportinnelle au delta
-             vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             // this->motor->init(this->motor->vitesse_max, vitesse);
-             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
+             this->motor->avance();
           }
        } else {
-          // delta important: on le renormalise
-          delta = delta / 2;
-          if (delta > this->sensibilite) delta = this->sensibilite;
-          else if (delta < -this->sensibilite) delta = -this->sensibilite;
-
-          if (delta > 0) {
-             // optique droite + => il faut redresser vers la droite
-             // on freine sur la roue gauche donc on tourne à gauche
-             // on calcule la vitesse à appliquer proportinnelle au delta
-             vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             this->motor->droite();
-             //this->motor->init(this->motor->vitesse_max, vitesse);
-             //this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
+          if (delta > 0 ) {
+             // lumière à droite => il faut redresser vers la droite
+             this->motor->init(vitesse, this->motor->vitesse_max);
           } else if (delta < 0) {
-             // optique gauche + => il faut redresser vers la gauche
-             // on freine sur la roue droite donc on tourne à droit
-             // on calcule la vitesse à appliquer proportinnelle au delta
-             vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             this->motor->gauche();
-             // this->motor->init(vitesse, this->motor->vitesse_max);
-             //this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
+             // lumière à gauche => il faut redresser vers la gauche
+             this->motor->init(this->motor->vitesse_max, vitesse);
           }
+          delay(10);
+          this->motor->avance();
        }
     }
 };
@@ -482,7 +467,6 @@ Ultrason U(&M);
 Optique O(&robot, &M);
 
 int Mode = MANUEL;
-// int Mode = COLLISION; // initialisation
 
 
 /* ------------------AUTO-TEST ----------------
@@ -550,7 +534,7 @@ void loop()
        }
        else if (Mode == SUIVI){
           //Serial.print("delta entre les capteurs");
-          Serial.println(O.lecture() - O.balance);
+          Serial.println(O.delta());
           O.action();
        };
    }
