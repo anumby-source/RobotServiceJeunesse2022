@@ -476,28 +476,32 @@ int Mode = MANUEL;
 3 bip : capteur optique à l'équilibre
 
 si la distance ultrason est inférieure à seuil2 : passage en manuel
-const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
-const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
 
 */
 void auto_test(){
     unsigned long currentMillis = millis();
     int flag=1; 
     M.bip();
-    Serial.println("lire droite");
-    Serial.println(O.lecture());
     if (O.lecture() > 10) M.bip();
-    if (abs(O.lecture() - 512) < 100 ) M.bip();
-    // while(1) Serial.println(O.lecture() - 512);
-
+    if (abs(O.lecture() - 512) < 100 ) {
+       M.bip();
+       O.balance_des_blancs();
+       Serial.print("Balance des blancs");
+       Serial.println(O.balance);
+    }
+    M.lent();
      while(flag) {
           int retour = U.action();
           Serial.println(U.read());
           Mode = retour;
-          U.action();
           if (retour == STOP) {
               Mode = MANUEL;
               flag=0;
+          } else if (retour == AVANCE) {
+                Serial.println(O.lecture());
+              O.action();
+          } else {
+              U.action();
           }
      }              
 };
