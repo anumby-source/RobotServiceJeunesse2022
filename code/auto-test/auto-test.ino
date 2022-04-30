@@ -4,17 +4,6 @@
 // le coeur du code est hérité du code développé par Arnaud
 // Reformatté et structuré pour l'algorithmique en C++ par Chris
 
-/* ------------------AUTO-TEST ----------------
-
-1 bip : moteur
-2 bip : capteur optique branché
-3 bip : capteur optique à l'équilibre
-si la distance ultrason est inférieure à seuil2 : passage en manuel
-
-  const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
-  const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
-
-*/
 
 #include <ESP8266WiFi.h>
 #include <DNSServer.h>
@@ -33,6 +22,7 @@ si la distance ultrason est inférieure à seuil2 : passage en manuel
 #define MANUEL    10
 #define COLLISION 11
 #define SUIVI     12
+#define BALANCE   13
 
 //                  0   1               2      3                  4         5        6    7   8
 String dirs[9] = { "", "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Droite", "Gauche", "", "", ""};
@@ -131,6 +121,7 @@ String("'> \
               <td> <button name='LED0' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suiveur </button></td> \
+              <td> <button name='LED0' class='cmd' value='") + String(BALANCE) + String("' type='submit'> Blancs </button></td> \
           </tr> \
       </table> \
   </form> \
@@ -183,6 +174,7 @@ int Web::action()
   if (request.indexOf("LED0=" + String(MANUEL)) != -1) commande = MANUEL;
   else if (request.indexOf("LED0=" + String(COLLISION)) != -1) commande = COLLISION;
   else if (request.indexOf("LED0=" + String(SUIVI)) != -1) commande = SUIVI;
+  else if (request.indexOf("LED0=" + String(BALANCE)) != -1) commande = BALANCE;
 
   //-----------------PAVE HAUT------------
   else if (request.indexOf("LED0=" + String(SENSMIN)) != -1) commande = SENSMIN;
@@ -209,6 +201,7 @@ int Web::action()
   request = "";
   return (commande);
 };
+
 //-------------------- MOTEUR -------------------------------
 class Motorisation{
   private:
@@ -257,8 +250,8 @@ class Motorisation{
   void bip(void)  { // test moteur
       digitalWrite(this->pin_droite, this->avant);
       digitalWrite(this->pin_gauche, this->avant);
-      analogWrite(this->speed_droite, this->vitesse_max);
-      analogWrite(this->speed_gauche, this->vitesse_max);
+      analogWrite(this->speed_droite, this->vitesse_min);
+      analogWrite(this->speed_gauche, this->vitesse_min);
       delay(100);
       analogWrite(this->speed_droite, 0);
       analogWrite(this->speed_gauche, 0);
@@ -315,8 +308,8 @@ class Motorisation{
 class Ultrason{
   private:
 #define SOUND_SPEED 0.034
-    const int trigger = 13; //D7;
-    const int echo = 12; //d6;
+    const int trigger = D6; 
+    const int echo = D5; 
     //define sound speed in cm/uS
     const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
     const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
@@ -373,55 +366,37 @@ class Optique{
 private:
     Robot* robot = NULL;
     Motorisation* motor = NULL;
-    int iterations  = 100;   // itérations de la fonction delta
-    int gauche = D8;          // le capteur de gauche DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
-    int droite = D8;          // le capteur de droite DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
     int capteur = A0;         // lecture              DEFINIR LES VRAIES VALEURS DES PINS ASSOCIEES
-    int sensibilite = 50;     // seuil de sensibilite droite/gauche
+    int balance_faite = 0;
 
 public:
+    int sensibilite = 50;     // seuil de sensibilite droite/gauche
+    long balance = 1024/2;
+
    Optique(Robot* robot, Motorisation* motor){
        this->robot = robot;
        this->motor = motor;
    };
 
-   void set_droite(){
-       digitalWrite(this->droite, HIGH);   // turn the LED on (HIGH is the voltage level)
-       digitalWrite(this->gauche, LOW);   // turn the LED on (HIGH is the voltage level)
+   long lecture(){
+       return (analogRead(this->capteur));
    };
 
-   void set_gauche(){
-       digitalWrite(this->droite, LOW);   // turn the LED on (HIGH is the voltage level)
-       digitalWrite(this->gauche, HIGH);   // turn the LED on (HIGH is the voltage level)
-   };
-
-   long lire_droite(){
-       long valeur = 0;
-       int i = this->iterations;
-       set_droite();
-       while (i--) valeur += analogRead(this->capteur);
-       return (valeur / this->iterations);
-   };
-   long lire_gauche(){
-       long valeur = 0;
-       int i = this->iterations;
-       set_gauche();
-       while (i--) valeur += analogRead(this->capteur);
-       return (valeur / this->iterations);
+   void balance_des_blancs(){
+       if (this->balance_faite) return;
+       // positionner une feuille blanche très près du capteur optique
+       long valeur = this->lecture();
+       this->balance = valeur;
+       this->balance_faite = 1;
    };
 
    long delta(){
       // mesure la différence entre le capteur de droite et le capteur de gauche
       // si le capteur de droite est > au capteur de gauche => delta > 0
-       long valeur = 0;
 
-       valeur = lire_droite();
-       valeur -= lire_droite();
+       long valeur = this->lecture() - this->balance;
 
-       digitalWrite(this->droite, LOW);   // turn the LED on (HIGH is the voltage level)
-       digitalWrite(this->gauche, LOW);
-
-       return (valeur / this->iterations);
+       return (valeur);
    };
 
    void action(){
@@ -446,14 +421,16 @@ public:
              // optique droite + => il faut redresser vers la droite
              // on freine sur la roue droite donc on tourne à droit
              // on calcule la vitesse à appliquer proportinnelle au delta
-             vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             this->motor->init(vitesse, this->motor->vitesse_max);
+             // vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
+             // this->motor->init(vitesse, this->motor->vitesse_max);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           } else if (delta < 0) {
              // optique gauche + => il faut redresser vers la gauche
              // on freine sur la roue gauche donc on tourne à gauche
              // on calcule la vitesse à appliquer proportinnelle au delta
              vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
-             this->motor->init(this->motor->vitesse_max, vitesse);
+             // this->motor->init(this->motor->vitesse_max, vitesse);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           }
        } else {
           // delta important: on le renormalise
@@ -467,14 +444,16 @@ public:
              // on calcule la vitesse à appliquer proportinnelle au delta
              vitesse = map(delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
              this->motor->droite();
-             this->motor->init(this->motor->vitesse_max, vitesse);
+             //this->motor->init(this->motor->vitesse_max, vitesse);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           } else if (delta < 0) {
              // optique gauche + => il faut redresser vers la gauche
              // on freine sur la roue droite donc on tourne à droit
              // on calcule la vitesse à appliquer proportinnelle au delta
              vitesse = map(-delta, 0, this->sensibilite, 0, this->motor->vitesse_max);
              this->motor->gauche();
-             this->motor->init(vitesse, this->motor->vitesse_max);
+             // this->motor->init(vitesse, this->motor->vitesse_max);
+             this->motor->init(this->motor->vitesse_min, this->motor->vitesse_min);
           }
        }
     }
@@ -487,44 +466,89 @@ Ultrason U(&M);
 Optique O(&robot, &M);
 
 int Mode = MANUEL;
+// int Mode = COLLISION; // initialisation
 
 
+/* ------------------AUTO-TEST ----------------
 
+1 bip : moteur
+2 bip : capteur optique branché
+3 bip : capteur optique à l'équilibre
+
+si la distance ultrason est inférieure à seuil2 : passage en manuel
+const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
+const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
+
+*/
+void auto_test(){
+    unsigned long currentMillis = millis();
+    int flag=1; 
+    M.bip();
+    Serial.println("lire droite");
+    Serial.println(O.lecture());
+    if (O.lecture() > 10) M.bip();
+    if (abs(O.lecture() - 512) < 100 ) {
+       M.bip();
+       O.balance_des_blancs();
+       Serial.print("Balance des blancs");
+       Serial.println(O.balance);
+    }
+    while(1) Serial.println(O.delta());
+
+     while(flag) {
+          int retour = U.action();
+          Serial.println(U.read());
+          Mode = retour;
+          U.action();
+          if (retour == STOP) {
+              Mode = MANUEL;
+              flag=0;
+          }
+     }              
+};
 void setup()
 {
-  unsigned long currentMillis = millis();
    Serial.begin(115200);
-       Serial.println("ROBOT");
+   Serial.println("ROBOT");
    web.init(&robot);
-   M.bip();
-     Serial.println("lire droite");
-     Serial.println(O.lire_droite());
-     if (O.lire_droite()>10) M.bip();
-     if ( abs( O.lire_droite() - 512 )< 100 ) M.bip();
-     while(1) Serial.println(O.lire_droite() - 512);
-
-    
-     // while(1) Serial.println(U.read());
+   auto_test();
 }
-
 void loop()
 {
    int commande = web.action();
-   Mode = COLLISION; // initialisation
    M.action(commande);
-        Serial.println("commande :");
-        Serial.println(commande);
-   if (commande == COLLISION) Mode = COLLISION;
-   else if (commande == MANUEL) Mode = MANUEL;
+   //Serial.println("commande :");
+   //Serial.println(commande);
 
-   if (Mode == COLLISION){
-      int retour = U.action();
-      if (retour == STOP) Mode = MANUEL;
-   };
-   
-   if (Mode == SUIVI){
-      O.action();
-   };
+   if (commande == BALANCE)
+   {
 
+
+       Mode = MANUEL;
+   }
+   else
+   {
+       //Serial.print("Mode ");
+       //Serial.println(Mode);
+       
+       if (commande == COLLISION) Mode = COLLISION;
+       else if (commande == SUIVI) Mode = SUIVI;
+       else if (commande == MANUEL) Mode = MANUEL;
+       else if (commande == STOP)
+       {
+        Mode = MANUEL;
+        M.stop();
+       }
+
+       if (Mode == COLLISION){
+          int retour = U.action();
+          if (retour == STOP) Mode = MANUEL;
+       }
+       else if (Mode == SUIVI){
+          //Serial.print("delta entre les capteurs");
+          Serial.println(O.lecture() - O.balance);
+          O.action();
+       };
+   }
    delay(100);
 }
