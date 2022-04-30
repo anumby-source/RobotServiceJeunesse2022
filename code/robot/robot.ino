@@ -205,12 +205,12 @@ class Motorisation{
      int pin_gauche = 2; //  broche enable du L298N pour le deuxième moteur
      int speed_droite = 5; // Premier moteur
      int speed_gauche = 4; // Deuxième moteur
-     int avant = HIGH;
-     int arriere = LOW;
+     int en_avant = HIGH;  // sens de rotation du moteur
+     int en_arriere = LOW;
 
   public:
-     int vitesse_max = 500;
-     int vitesse_min = 300;
+     int vitesse_max = 400;
+     int vitesse_min = 200;
 
   Motorisation(Robot* robot){
     this->robot = robot;
@@ -218,12 +218,13 @@ class Motorisation{
     pinMode(this->pin_gauche, OUTPUT);
     pinMode(this->speed_droite, OUTPUT);
     pinMode(this->speed_gauche, OUTPUT);
-    digitalWrite(this->pin_droite, this->avant);
-    digitalWrite(this->pin_gauche, this->avant);
+    digitalWrite(this->pin_droite, this->en_avant);
+    digitalWrite(this->pin_gauche, this->en_avant);
   };
 
   void action(int commande){
      this->robot->set_commande(commande);
+
      if (commande == AVANCE) this->avance();
      else if (commande == RECULE) this->recule();
      else if (commande == DROITE) this->droite();
@@ -236,15 +237,15 @@ class Motorisation{
   void init(int vitesse_droite, int vitesse_gauche){
       this->stop();
       this->robot->set_commande(AVANCE);
-      digitalWrite(this->pin_droite, this->avant);
-      digitalWrite(this->pin_gauche, this->avant);
+      digitalWrite(this->pin_droite, this->en_avant);
+      digitalWrite(this->pin_gauche, this->en_avant);
       analogWrite(this->speed_droite, vitesse_droite);
       analogWrite(this->speed_gauche, vitesse_gauche);
   };
 
   void bip(void)  { // test moteur
-      digitalWrite(this->pin_droite, this->avant);
-      digitalWrite(this->pin_gauche, this->avant);
+      digitalWrite(this->pin_droite, this->en_avant);
+      digitalWrite(this->pin_gauche, this->en_avant);
       analogWrite(this->speed_droite, this->vitesse_min);
       analogWrite(this->speed_gauche, this->vitesse_min);
       delay(100);
@@ -269,32 +270,52 @@ class Motorisation{
       this->robot->set_commande(AVANCE);
       analogWrite(this->speed_droite, this->vitesse_max);
       analogWrite(this->speed_gauche, this->vitesse_max);
-      digitalWrite(this->pin_droite, this->avant);
-      digitalWrite(this->pin_gauche, this->avant);
+      digitalWrite(this->pin_droite, this->en_avant);
+      digitalWrite(this->pin_gauche, this->en_avant);
   };
 
   void droite()  {
-      this->robot->set_commande(DROITE);
-      analogWrite(this->speed_droite, this->vitesse_max);
+      analogWrite(this->speed_droite, 0);
       analogWrite(this->speed_gauche, this->vitesse_max);
-      digitalWrite(this->pin_droite, this->avant);
-      digitalWrite(this->pin_gauche, this->arriere);
+      if (this->robot->dir == AVANCE)
+      {
+        digitalWrite(this->pin_droite, this->en_avant);
+        digitalWrite(this->pin_gauche, this->en_avant);
+        delay(10);
+        this->avance();
+      }
+      else if (this->robot->dir == RECULE) {
+        digitalWrite(this->pin_droite, this->en_arriere);
+        digitalWrite(this->pin_gauche, this->en_arriere);
+        this->recule();
+      }
+      else this->stop();
   };
 
   void gauche()  {
-      this->robot->set_commande(GAUCHE);
       analogWrite(this->speed_droite, this->vitesse_max);
-      analogWrite(this->speed_gauche, this->vitesse_max);
-      digitalWrite(this->pin_droite, this->arriere);
-      digitalWrite(this->pin_gauche, this->avant);
+      analogWrite(this->speed_gauche, 0);
+      if (this->robot->dir == AVANCE)
+      {
+        digitalWrite(this->pin_droite, this->en_avant);
+        digitalWrite(this->pin_gauche, this->en_avant);
+        delay(10);
+        this->avance();
+      }
+      else if (this->robot->dir == RECULE) {
+        digitalWrite(this->pin_droite, this->en_arriere);
+        digitalWrite(this->pin_gauche, this->en_arriere);
+        this->recule();
+      }
+      else this->stop();
   };
 
   void recule()  {
       this->robot->set_commande(RECULE);
       analogWrite(this->speed_droite, this->vitesse_max);
       analogWrite(this->speed_gauche, this->vitesse_max);
-      digitalWrite(this->pin_droite, this->arriere);
-      digitalWrite(this->pin_gauche, this->arriere);
+      digitalWrite(this->pin_droite, this->en_arriere);
+      digitalWrite(this->pin_gauche, this->en_arriere);
   };
 
 };
