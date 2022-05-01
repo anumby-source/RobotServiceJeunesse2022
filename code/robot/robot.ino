@@ -129,14 +129,14 @@ class Motorisation{
   };
 
   void lent(){
-      this->vitesse -= 50;
+      this->vitesse -= 10;
       if (this->vitesse < this->vitesse_min) this->vitesse = this->vitesse_min;
       this->robot->set_vitesse(this->vitesse);
       Serial.println("Motorisation> lent" + this->vitesse);
   }
 
   void rapide(){
-      this->vitesse += 50;
+      this->vitesse += 10;
       if (this->vitesse > this->vitesse_max) this->vitesse = this->vitesse_max;
       this->robot->set_vitesse(this->vitesse);
       Serial.println("Motorisation> rapide" + this->vitesse);
@@ -151,22 +151,22 @@ class Motorisation{
   void avance()  {
       Serial.println("Motorisation> avance");
       this->robot->set_commande(AVANCE);
-      this->set_vitesses(this->vitesse_max, this->vitesse_max);
+      this->set_vitesses(this->vitesse, this->vitesse);
       this->en_avant();
   };
 
   void droite()  {
       Serial.println("Motorisation> droite dir=" + String(this->robot->dir));
-      this->set_vitesses(0, this->vitesse_max);
+      this->set_vitesses(0, this->vitesse);
       if (this->robot->dir == AVANCE)
       {
         this->en_avant();
-        delay(1000);
+        delay(100);
         this->avance();
       }
       else if (this->robot->dir == RECULE) {
         this->en_arriere();
-        delay(1000);
+        delay(100);
         this->recule();
       }
       else this->stop();
@@ -174,16 +174,16 @@ class Motorisation{
 
   void gauche()  {
       Serial.println("Motorisation> gauche dir=" + String(this->robot->dir));
-      this->set_vitesses(this->vitesse_max, 0);
+      this->set_vitesses(this->vitesse, 0);
       if (this->robot->dir == AVANCE)
       {
         this->en_avant();
-        delay(1000);
+        delay(100);
         this->avance();
       }
       else if (this->robot->dir == RECULE) {
         this->en_arriere();
-        delay(1000);
+        delay(100);
         this->recule();
       }
       else this->stop();
@@ -192,7 +192,7 @@ class Motorisation{
   void recule()  {
       Serial.println("Motorisation> recule");
       this->robot->set_commande(RECULE);
-      this->set_vitesses(this->vitesse_max, this->vitesse_max);
+      this->set_vitesses(this->vitesse, this->vitesse);
       this->en_arriere();
   };
 
@@ -322,10 +322,10 @@ public:
        } else {
           if (delta > 0 ) {
              // lumière à droite => il faut redresser vers la droite
-             this->motor->set_vitesses(vitesse, this->motor->vitesse_max);
+             this->motor->set_vitesses(vitesse, this->motor->vitesse);
           } else if (delta < 0) {
              // lumière à gauche => il faut redresser vers la gauche
-             this->motor->set_vitesses(this->motor->vitesse_max, vitesse);
+             this->motor->set_vitesses(this->motor->vitesse, vitesse);
           }
           delay(10);
           this->motor->avance();
@@ -333,6 +333,35 @@ public:
     }
 };
 
+void send_to_client(WiFiClient client, String a){
+  int len = a.length();
+  int increment = 1024;
+  int start = 0;
+  int end = 0;
+
+  while (len > 0){
+    char chars[increment + 1];
+    int sub = increment;
+    if (len <= increment) sub = len;
+    end = start + sub;
+    String s = a.substring(start, end);
+    s.toCharArray(chars, sub+1);
+
+    Serial.print("send_to_client> len=" + String(len));
+    Serial.println(" [" + String(start) + ":" + String(end) + "]");
+    // Serial.print(" chars = [");
+    // Serial.print(chars);
+    // Serial.print("]");
+    // Serial.println(" a= [" + s + "]");
+
+    client.write(chars);
+
+    len -= sub;
+    start = end;
+  }
+
+  
+};
 
 //-------------------- WEB -------------------------------
 class Web {
@@ -422,26 +451,27 @@ class Web {
               <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
               <TD> <button name='LED0' class='button' value='") + String(DROITE) + String("' type='submit'> Droite </button></TD> \
           </TR> \
+          <TR> \
+               <TD> <p class='param'> Vitesse </p></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(LENT) + String("' type='submit'> Lent </button></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(RAPIDE) + String("' type='submit'> Rapide </button></TD> \
+          </TR> \
       </TABLE> \
+      <label for='vitesse'>vitesse:</label> \n \
+      <input class='echo' id='vitesse' name='vitesse'  value=' ") + String(this->robot->vitesse) + String("'> \
   </form> \
   </center> \
 </head> \
 </html>");
 
-        client.println(html);
-    
+        send_to_client(client, html);
+        
+        //client.println(html);
+
         /*
-            client.println("          <TR>");
-            client.println("              <TD> <p class='param'> Vitesse </p></TD>");
-            client.println("              <TD> <button name='LED0' class='param' value='" + String(LENT) + "' type='submit'> Lent </button></TD>");
-            client.println("              <TD> <button name='LED0' class='param' value='" + String(RAPIDE) + "' type='submit'> Rapide </button></TD>");
-            client.println("          </TR>");
             */
     /*
     
-        <label for='vitesse'>vitesse:</label> \n \
-        <input class='echo' id='vitesse' name='vitesse'  value=' ") + String(this->robot->vitesse) +
-    String("'> \n \
     
             <TR> \
                 <TD> <p class='param'> Sensibilit&eacute; </p></TD> \
@@ -645,9 +675,6 @@ void loop()
         O.action();
      };
   
-     delay(200);
-
-   
-   }
-
+     delay(100);
+  }
 }
