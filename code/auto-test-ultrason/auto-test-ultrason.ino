@@ -492,14 +492,32 @@ void auto_test(){
     M.lent();
      while(flag) {
           int retour = U.action();
-          Serial.println(U.read());
+  //        Serial.println(U.read());
           Mode = retour;
           if (retour == STOP) {
               Mode = MANUEL;
               flag=0;
           } else if (retour == AVANCE) {
-                Serial.println(O.lecture());
-              O.action();
+              int delta;
+              Serial.print("delta :");
+              Serial.print(delta=O.delta());
+              Serial.print(" distance :");
+              Serial.println(U.read());  
+              if (abs(delta) < 100)  {
+                    M.avance();
+                } else {
+              if (delta > 0 ) {
+             // lumière à droite => il faut redresser vers la droite
+                            M.droite();
+
+              } else if (delta < 0) {
+             // lumière à gauche => il faut redresser vers la gauche
+                            M.gauche();
+            }
+           } 
+
+
+              
           } else {
               U.action();
           }
