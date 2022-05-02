@@ -10,6 +10,7 @@ except:
 
 import network            #importing network
 import esp                 #importing ESP
+from machine import Pin, ADC
 
 esp.osdebug(None)
 
@@ -141,8 +142,18 @@ def web_page(client, commande):
             pass
 
 
+pot = ADC(0)
+
+def cps(pot):
+    a = 40
+    b = 430
+    v = pot.read()
+    return (v - a)/(b - a)
+
+
 def do_something_else():
     print("doing somethig else")
+    print("CPS = ", cps(pot))
     
 def client_handler(commande):
     print("client_handler", commande)
