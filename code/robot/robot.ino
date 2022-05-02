@@ -637,8 +637,8 @@ int read_id(){
 void loop()
 {
    if (done == 0) {
-     //id = read_id();
-     id = 123;
+     id = read_id();
+     // id = 123;
      done = 1;
      web.init(id, &robot, &M);
    }
