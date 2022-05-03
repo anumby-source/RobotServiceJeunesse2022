@@ -376,9 +376,9 @@ class Web {
     
         IPAddress apIP(44, 44, 44, 44);         // Définition de l'adresse IP statique.
         const char *password = "12345678";      // mot de passe (*** A modifier ***)
-        char ssid[30];
-        //sprintf(ssid, "RCO_%d", ESP.getChipId()); // ceci différencie la connexion pour chaque voiture
-        sprintf(ssid, "RCO_%d", id); // ceci différencie la connexion pour chaque voiture
+        char ssid[40];
+        sprintf(ssid, "ANUMBY_%d", ESP.getChipId()); // ceci différencie la connexion pour chaque voiture
+        // sprintf(ssid, "RCO_%d", id); // ceci différencie la connexion pour chaque voiture
     
         Serial.print("Initialise le réseau ");
         Serial.print(ssid);
@@ -557,12 +557,26 @@ class Web {
 };
 
 
+class Coyote{
+public:
+   boolean flag;
+   void init(){
+//      pinMode(D7, OUTPUT);
+   }
+   int blink(){
+    flag = !flag;
+//    digitalWrite(D7, flag);
+   };
+};
+
+
 
 Web web;
 Robot robot;
 Motorisation M(&robot);
 Ultrason U(&M);
 Optique O(&robot, &M);
+Coyote C;
 
 
 /* ------------------AUTO-TEST ----------------
@@ -578,45 +592,47 @@ const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place d
 */
 void auto_test(){
     unsigned long currentMillis = millis();
-    int flag=1;
+    int flag = 1;
     M.bip();
-    Serial.println("lire droite");
-    Serial.println(O.lecture());
+    C.init();
     if (O.lecture() > 10) M.bip();
     if (abs(O.lecture() - 512) < 100 ) {
-         M.bip();
-         O.balance_des_blancs();
-         Serial.print("Balance des blancs");
-         Serial.println(O.balance);
+       M.bip();
+       O.balance_des_blancs();
+       Serial.print("Balance des blancs");
+       Serial.println(O.balance);
     }
-    //while(1) Serial.println(O.delta());
-
+    M.lent();
     while(flag) {
-         int retour = U.action();
-  //        Serial.println(U.read());
-         Mode = retour;
-         if (retour == STOP) {
+          int retour = U.action();
+          //  Serial.println(U.read());
+          Mode = retour;
+          if (retour == STOP) {
               Mode = MANUEL;
               flag=0;
-         } else if (retour == AVANCE) {
+          } else if (retour == AVANCE) {
               int delta;
               Serial.print("delta :");
               Serial.print(delta=O.delta());
               Serial.print(" distance :");
               Serial.println(U.read());
-              if (abs(delta) < 100)  {
+              if (abs(delta) < 50)  {
                     M.avance();
               } else {
+                   C.blink();
+                   if (C.flag) delta = - delta;
                    if (delta > 0 ) {
-             // lumière à droite => il faut redresser vers la droite
-                       M.droite();
-
+                        // lumière à droite => il faut redresser vers la droite
+                        M.droite();
                    } else if (delta < 0) {
-             // lumière à gauche => il faut redresser vers la gauche
-                       M.gauche();
-             }
-         }
-    }
+                        // lumière à gauche => il faut redresser vers la gauche
+                        M.gauche();
+                   }
+               }
+          } else {
+              U.action();
+          }
+     }
 };
 
 
@@ -653,7 +669,7 @@ int read_id(){
 void loop()
 {
    if (done == 0) {
-     id = read_id();
+     // id = read_id();
      // id = 123;
      done = 1;
      web.init(id, &robot, &M);
