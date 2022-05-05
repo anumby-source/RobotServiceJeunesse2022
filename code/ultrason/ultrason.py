@@ -52,6 +52,11 @@ class HCSR04():
 #
 # pin_echo : pin pour mesurer la distance
 # pin_trig : pin pour envoyer les impulsions
+
+
+
+
+
 pin_echo = 4  # sortie D2 –> GPIO04
 pin_trigger = 5  # sortie D1 –> GPIO05
 

@@ -195,7 +195,7 @@ int Web::action()
   // Serial.println(commande);
 
   this->robot->set_commande(commande);
-  
+
   this->web_page(client, commande);
 
   request = "";
@@ -208,8 +208,8 @@ class Motorisation{
      Robot* robot = NULL;
      int pin_droite = 0; // broche enable du L298N pour le premier moteur
      int pin_gauche = 2; //  broche enable du L298N pour le deuxième moteur
-     int speed_droite = 5; // Premier moteur
-     int speed_gauche = 4; // Deuxième moteur
+     int speed_droite = 4; // Premier moteur
+     int speed_gauche = 5; // Deuxième moteur
      int avant = HIGH;
      int arriere = LOW;
 
@@ -308,8 +308,8 @@ class Motorisation{
 class Ultrason{
   private:
 #define SOUND_SPEED 0.034
-    const int trigger = D6; 
-    const int echo = D5; 
+    const int trigger = D6;
+    const int echo = D5;
     //define sound speed in cm/uS
     const int seuil1 = 40;  // si on est > seuil1 on avance, si non on tourne à droite
     const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
@@ -467,7 +467,7 @@ public:
    }
    int blink(){
     flag = !flag;
-//    digitalWrite(D7, flag); 
+//    digitalWrite(D7, flag);
    };
 };
 Web web;
@@ -492,7 +492,7 @@ si la distance ultrason est inférieure à seuil2 : passage en manuel
 */
 void auto_test(){
     unsigned long currentMillis = millis();
-    int flag=1; 
+    int flag=1;
     M.bip();
     C.init();
     if (O.lecture() > 10) M.bip();
@@ -515,7 +515,7 @@ void auto_test(){
               Serial.print("delta :");
               Serial.print(delta=O.delta());
               Serial.print(" distance :");
-              Serial.println(U.read());  
+              Serial.println(U.read());
               if (abs(delta) < 50)  {
                     M.avance();
                 } else {
@@ -529,25 +529,17 @@ void auto_test(){
              // lumière à gauche => il faut redresser vers la gauche
                             M.gauche();
             }
-           } 
+           }
 
 
-              
+
           } else {
               U.action();
           }
-     }              
+     }
 };
-void setup()
-{
-   Serial.begin(115200);
-   Serial.println("ROBOT");
-   web.init(&robot);
-   auto_test();
-}
 
-void loop()
-{
+void f(){
    int commande = web.action();
    M.action(commande);
    //Serial.println("commande :");
@@ -564,7 +556,7 @@ void loop()
    {
        //Serial.print("Mode ");
        //Serial.println(Mode);
-       
+
        if (commande == COLLISION) Mode = COLLISION;
        else if (commande == SUIVI) Mode = SUIVI;
        else if (commande == MANUEL) Mode = MANUEL;
@@ -584,6 +576,17 @@ void loop()
           O.action();
        };
    }
+}
 
+void setup()
+{
+   Serial.begin(115200);
+   Serial.println("ROBOT");
+   //web.init(&robot);
+   auto_test();
+}
+
+void loop()
+{
    delay(100);
 }

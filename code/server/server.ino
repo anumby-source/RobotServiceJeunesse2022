@@ -3,12 +3,13 @@
 //
 
 #include <ESP8266WiFi.h>
-#include <DNSServer.h>
+//#include <DNSServer.h>
 #include <ESP8266WebServer.h>
 
 char buffer[30];
 
-WiFiServer server(80);
+//WiFiServer server(80);
+ESP8266WebServer server(80);            // Port du serveur
 
 class Robot {
   public:
@@ -21,45 +22,22 @@ class Robot {
   
 };
 
-class Web {
-  public:
-    void init(Robot* robot);
-    void web_page(WiFiClient client, int commande, int dir);
-    WiFiClient client();
-    int action();
-  private:
-    Robot* robot;
-};
+void handleSpecificArg() { 
+    String message = "";
+    
+    if (server.arg("Temperature")== ""){     //Parameter not found
+        message = "Temperature Argument not found";
+    }else{     //Parameter found
+        message = "Temperature Argument = ";
+        message += server.arg("Temperature");     //Gets the value of the query parameter    
+    }
 
-WiFiClient Web::client()
-{
-   return (server.available());  
+    server.send(200, "text/plain", message);          //Returns the HTTP response
 }
 
-void Web::init(Robot* robot)
-{
-    this->robot = robot;
 
-    IPAddress apIP(44, 44, 44, 1);          // Définition de l'adresse IP statique.  
-    // const char *ssid = "RCO";            // Nom du reseau wifi (*** A modifier ***)
-    const char *password = "12345678";      // mot de pasensibilitee (*** A modifier ***)
-    //ESP8266WebServer server(80);
 
-    char ssid[30];
-    sprintf(ssid, "RCO_%d", ESP.getChipId());
-
-    // declaration du wifi:
-    WiFi.mode(WIFI_AP);
-    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-    WiFi.softAP(ssid, password);
-
-    // if you get here you have connected to the WiFi
-    Serial.println("Connected.");
-
-    server.begin();
-}
-
-void Web::web_page(WiFiClient client, int commande, int dir)
+String web_page(int commande, int dir)
 {
     String html1 ="<!DOCTYPE html> \
 <html> \
@@ -139,14 +117,80 @@ void Web::web_page(WiFiClient client, int commande, int dir)
 
     String dirs[5] = { "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Gauche", "Droite"};
 
-      client.print(html1);
-      client.print(html2_1);
-      client.print(commande);
-      client.print(html2_2);
-      client.print(dirs[dir]);
-      client.print(html3);
-      client.print(html4);
+    String html = html1 + html2_1 + String(commande) + html2_2 + dirs[dir] + html3 + html4;
+
+      //client.print(html1);
+      //client.print(html2_1);
+      //client.print(commande);
+      //client.print(html2_2);
+      //client.print(dirs[dir]);
+      //client.print(html3);
+      //client.print(html4);
       // client.print(html);
+    return (html);
+}
+
+
+
+class Web {
+  public:
+    void init(Robot* robot);
+    WiFiClient client();
+    int action();
+  private:
+    Robot* robot;
+};
+
+WiFiClient Web::client()
+{
+   // return (server.available());  
+}
+
+void handleGenericArgs(){
+  //Serial.println("handleRoute");
+  //server.send ( 200, "text/html", web_page(0, 0) );
+
+
+  String message = "Number of args received:";
+  message += server.args();
+
+  for (int i = 0; i < server.args(); i++) {
+    message += "Arg nº" + (String) i + " –> ";
+    message += server.argName(i) + ": ";
+    message += server.arg(i) + "\n";
+  } 
+  Serial.print("handleRoute> ");
+  Serial.println(message);
+
+
+  String html = web_page(0, 0);
+  
+  server.send(200, "text/html", html);       //Response to the HTTP request
+}
+
+void Web::init(Robot* robot)
+{
+    this->robot = robot;
+
+    IPAddress apIP(44, 44, 44, 44);          // Définition de l'adresse IP statique.  
+    // const char *ssid = "RCO";            // Nom du reseau wifi (*** A modifier ***)
+    const char *password = "12345678";      // mot de pasensibilitee (*** A modifier ***)
+
+    char ssid[30];
+    sprintf(ssid, "RCO_%d", ESP.getChipId());
+
+    // declaration du wifi:
+    WiFi.mode(WIFI_AP);
+    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+    WiFi.softAP(ssid, password);
+
+    server.on("/", handleGenericArgs); //Associate the handler function to the path
+    //server.on("/specificArgs", handleSpecificArg);   //Associate the handler function to the path
+
+    // if you get here you have connected to the WiFi
+    Serial.println("Connected.");
+
+    server.begin();
 }
 
 int Web::action()
@@ -191,7 +235,7 @@ int Web::action()
   this->robot->commande = commande;
   this->robot->dir = dir;
   
-  this->web_page(client, commande, dir);
+  web_page(commande, dir);
   
   request = "";
   return (commande);
@@ -201,17 +245,18 @@ int Web::action()
 Robot robot;
 Web web;
 
-
 void setup()
 {
-   Serial.begin(9600);
-   web.init(&robot);
+    Serial.begin(115200);
+    web.init(&robot);
 
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());  //Print the local IP to access the server
 }
 
 void loop()
 { // temporisation de 2s pour moteur
-  web.action();
+   server.handleClient();
 
    delay(100);
 }
