@@ -32,7 +32,7 @@ String text_cmd[16] = { "", "STOP", "AVANCE", "RECULE", "DROITE", "GAUCHE", "V1"
 String text_mode[3] = { "MANUEL", "COLLISION", "SUIVI"};
 
 ESP8266WebServer server(80);            // Port du serveur
-int Mode = BALANCE;
+int Mode = MANUEL;
 
 
 //-------------------- ROBOT -------------------------------
