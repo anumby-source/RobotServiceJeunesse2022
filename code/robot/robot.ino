@@ -594,7 +594,7 @@ void handle_args(){
       Serial.println("");
       if (first == 1) {
         first = 0;
-        Mode = BALANCE;
+        Mode = MANUEL;
         commande = 0;
       }
       else {
