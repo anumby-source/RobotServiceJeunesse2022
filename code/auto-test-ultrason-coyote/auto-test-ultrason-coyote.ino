@@ -493,7 +493,6 @@ si la distance ultrason est inférieure à seuil2 : passage en manuel
 void auto_test(){
     unsigned long currentMillis = millis();
     int flag=1;
-    M.bip();
     C.init();
     if (O.lecture() > 10) M.bip();
     if (abs(O.lecture() - 512) < 100 ) {
@@ -582,11 +581,13 @@ void setup()
 {
    Serial.begin(115200);
    Serial.println("ROBOT");
-   //web.init(&robot);
+       M.bip();
    auto_test();
+      web.init(&robot);
 }
 
 void loop()
 {
-   delay(100);
+     auto_test();
+
 }
