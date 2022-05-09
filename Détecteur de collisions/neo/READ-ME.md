@@ -7,3 +7,5 @@ Le capteur ultrason va allumer une led multicolore
 - la couleur va changer du jaune, blanc au bleu pour les positions intermédiaires
 
 Pour cela, la PIN D-IN de la LED est placée sur l'entrée TRIGGER du capteur ultrason
+
+L'écriture de la LED est effectuée une fois la lecture du capteur ultrason. Un délai est ajouté pour tenir compte de la distance maximale de détection
