@@ -3,6 +3,7 @@
 //
 // le coeur du code est hérité du code développé par Arnaud
 // Reformatté et structuré pour l'algorithmique en C++ par Chris
+// PAS DE MOTEUR mis en route pour tester les capteurs tranquillement
 
 
 #include <ESP8266WiFi.h>
