@@ -8,7 +8,7 @@ allume une led pour optique
 - Verte tout droit si la balance est à l'équilibre
 - Bleu  pour la gauche
 
-- la couleur va changer du rouge, vert au bleu contiunement  pour les positions intermédiaire
+- la couleur va changer du rouge, vert au bleu continûment  pour les positions intermédiaire
 
 allume une led pour ultrason si pas d'optique
 
