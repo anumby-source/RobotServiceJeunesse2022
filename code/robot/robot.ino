@@ -15,9 +15,10 @@
 #define RECULE  3
 #define DROITE  4
 #define GAUCHE  5
-#define V1      6
-#define V2      7
-#define V3      8
+#define DROIT   6
+#define V1      7
+#define V2      8
+#define V3      9
 
 #define MANUEL    10
 #define COLLISION 11
@@ -26,137 +27,161 @@
 #define OK        14
 #define TEST      15
 
+#define S1      16
+#define S2      17
+#define S3      18
+
+// #define DEBUG   0
+
 //                  0   1               2      3                  4         5        6    7   8
 String dirs[9] = { "", "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Droite", "Gauche", "", "", ""};
-String text_cmd[16] = { "", "STOP", "AVANCE", "RECULE", "DROITE", "GAUCHE", "V1", "V2", "V3", " ", "MANUEL", "COLLISION", "SUIVI", "BALANCE", "OK", "TEST"};
-String text_mode[3] = { "MANUEL", "COLLISION", "SUIVI"};
+String text_cmd[19] = { "", "STOP", "AVANCE", "RECULE", "DROITE", "GAUCHE", "DROIT", "V1", "V2", "V3", \
+                        "MANUEL", "COLLISION", "SUIVI", "BALANCE", "OK", "TEST", \
+                        "S1", "S2", "S3"};
+String text_mode[13] = { "", "", "", "", "", "", "", "", "", "", "MANUEL", "COLLISION", "SUIVI"};
 
 ESP8266WebServer server(80);            // Port du serveur
 int Mode = MANUEL;
 
 
-//-------------------- ROBOT -------------------------------
-class Robot {
-  public:
-    int initial ; // valeur initiale du capteur balance lumière
-    int valeur;
-    int sensibilite ; // sensibilité
-    int commande = 0;
-    int dir = STOP;
-    int vitesse = 0;
-
-    void set_commande(int commande){
-      this->commande = commande;
-      if (commande == STOP || commande == AVANCE || commande == RECULE) this->dir = commande;
-      };
-
-    void set_vitesse(int vitesse){
-      Serial.println("Robot> init. vitesse=" + vitesse);
-      this->vitesse = vitesse;
-      };
-
-    int direction(){
-      return (this->dir);
-    };
-};
-
-
 //-------------------- MOTEUR -------------------------------
 class Motorisation{
   public:
-     Robot* robot = NULL;
-     int sens_droite = D4;  //0; // broche enable du L298N pour le premier moteur
-     int sens_gauche = D3;  //2; //  broche enable du L298N pour le deuxième moteur
-     int pwm_droite = D2;   //4; // Premier moteur
-     int pwm_gauche = D1;   // 5; // Deuxième moteur
+     int sens_droite = D4;    //0 broche enable du L298N pour le premier moteur
+     int sens_gauche = D3;    //2 broche enable du L298N pour le deuxième moteur
+     int pwm_droite = D2;     //4 Premier moteur
+     int pwm_gauche = D1;     //5 Deuxième moteur
      int boite_vitesse = 1;
-     int accel[4] = {0, 500 , 700 , 1024 };  // arret, 1ere, 2eme, 3eme
+     int sens = STOP;         // STOP, AVANCE, RECULE
+     int direction = DROIT;   // DROIT, DROITE, GAUCHE
 
-  Motorisation(Robot* robot){
-     this->robot = robot;
-     Serial.println("Motorisation> init");
+      Motorisation(){
+#ifdef DEBUG
+         Serial.println("Motorisation> init");
+#endif
 
-     pinMode(this->pwm_gauche,  OUTPUT);
-     pinMode(this->pwm_droite,  OUTPUT);
-     pinMode(this->sens_gauche, OUTPUT);
-     pinMode(this->sens_droite, OUTPUT);
+         pinMode(this->pwm_gauche,  OUTPUT);
+         pinMode(this->pwm_droite,  OUTPUT);
+         pinMode(this->sens_gauche, OUTPUT);
+         pinMode(this->sens_droite, OUTPUT);
 
-     analogWriteFreq(100);
-     this->stop();
-  };
+         analogWriteFreq(100);
+         this->stop();
+      };
 
-  void bip(void)  { // test moteur
-      Serial.println("Motorisation> bip");
-      this->avance();
-      delay(100);
-      this->stop();
-      delay(400);
-  };
+      void bip(void)  { // test moteur
+#ifdef DEBUG
+          Serial.println("Motorisation> bip");
+#endif
+          this->avance();
+          delay(100);
+          this->stop();
+          delay(400);
+      };
 
-  void action(int commande){
-     this->robot->set_commande(commande);
+      void action(int commande){
+         if (commande == AVANCE) this->avance();
+         else if (commande == RECULE) this->recule();
+         else if (commande == DROITE) this->droite();
+         else if (commande == GAUCHE) this->gauche();
+         else if (commande == STOP) this->stop();
+         else if (commande == V1) this->boite_vitesse = 1;
+         else if (commande == V2) this->boite_vitesse = 2;
+         else if (commande == V3) this->boite_vitesse = 3;
+      };
 
-     if (commande == AVANCE) this->avance();
-     else if (commande == RECULE) this->recule();
-     else if (commande == DROITE) this->droite();
-     else if (commande == GAUCHE) this->gauche();
-     else if (commande == STOP) this->stop();
-     else if (commande == V1) this->boite_vitesse = 1;
-     else if (commande == V2) this->boite_vitesse = 2;
-     else if (commande == V3) this->boite_vitesse = 3;
-  };
+      int boite_de_vitesse(int vitesse){
+         if (vitesse == 0) return (0);
+         return (map(vitesse, 1, 3, 128, 255));
+      };
 
-  void commande_gauche(int vitesse, int sens) {
-     analogWrite(this->pwm_gauche, accel[vitesse]);
-     digitalWrite(this->sens_gauche, sens);
-  }
+      void commande_gauche(int vitesse, int sens) {
+         int v = this->boite_de_vitesse(vitesse);
+#ifdef DEBUG
+         Serial.print("VG=");
+         Serial.println(v);
+#endif
+         analogWrite(this->pwm_gauche, v);
+         digitalWrite(this->sens_gauche, sens);
+      };
 
-  void commande_droite(int vitesse, int sens) {
-     analogWrite(this->pwm_droite, accel[vitesse]);
-     digitalWrite(this->sens_droite, sens);
-  }
+      void commande_droite(int vitesse, int sens) {
+         int v = this->boite_de_vitesse(vitesse);
+#ifdef DEBUG
+         // Serial.print("VD=");
+         // Serial.println(v);
+#endif
+         analogWrite(this->pwm_droite, v);
+         digitalWrite(this->sens_droite, sens);
+      };
 
-  void stop(void)  {
-      Serial.println("Motorisation> stop");
-      this->commande_gauche(0, LOW);
-      this->commande_droite(0, LOW);
-  };
+      void commande_stop() {
+          this->commande_gauche(0, LOW);
+          this->commande_droite(0, LOW);
+      };
 
-  void avance()  {
-      Serial.println("Motorisation> avance");
-      this->robot->set_commande(AVANCE);
-      this->stop();
-      delay(100);
-      this->commande_gauche(this->boite_vitesse, HIGH);
-      this->commande_droite(this->boite_vitesse, HIGH);
-  };
+      void commande_avance() {
+          this->commande_gauche(this->boite_vitesse, HIGH);
+          this->commande_droite(this->boite_vitesse, HIGH);
+      }
 
-  void recule()  {
-      Serial.println("Motorisation> recule");
-      this->robot->set_commande(RECULE);
-      this->stop();
-      delay(100);
-      this->commande_gauche(this->boite_vitesse, LOW);
-      this->commande_droite(this->boite_vitesse, LOW);
-  };
+      void commande_recule() {
+          this->commande_gauche(this->boite_vitesse, LOW);
+          this->commande_droite(this->boite_vitesse, LOW);
+      }
 
-  void gauche()  {
-      Serial.println("Motorisation> gauche dir=" + String(this->robot->dir));
-      this->stop();
-      delay(100);
-      this->commande_gauche(this->boite_vitesse - 1, HIGH);
-      this->commande_droite(this->boite_vitesse, HIGH);
-  };
+      void stop(void)  {
+#ifdef DEBUG
+          Serial.println("Motorisation> stop");
+#endif
+          this->sens = STOP;
+          this->direction = DROIT;
+          this->commande_stop();
+      };
 
-  void droite()  {
-      Serial.println("Motorisation> droite dir=" + String(this->robot->dir));
-      this->stop();
-      delay(100);
-      this->commande_gauche(this->boite_vitesse, HIGH);
-      this->commande_droite(this->boite_vitesse - 1, HIGH);
-  };
+      void avance()  {
+#ifdef DEBUG
+          Serial.println("Motorisation> avance");
+#endif
+          this->commande_stop();
+          this->sens = AVANCE;
+          this->direction = DROIT;
+          commande_avance ();
+      };
+
+      void recule()  {
+#ifdef DEBUG
+          Serial.println("Motorisation> recule");
+#endif
+          this->commande_stop();
+          this->sens = RECULE;
+          commande_recule ();
+      };
+
+      void gauche()  {
+#ifdef DEBUG
+          Serial.println("Motorisation> gauche dir=" + String(this->sens));
+#endif
+          int dir = this->sens;
+          this->direction = GAUCHE;
+          this->sens = dir;
+          this->commande_stop();
+          this->commande_gauche(this->boite_vitesse - 1, HIGH);
+          this->commande_droite(this->boite_vitesse, HIGH);
+      };
+
+      void droite()  {
+#ifdef DEBUG
+          Serial.println("Motorisation> droite dir=" + String(this->sens));
+#endif
+          int dir = this->sens;
+          this->direction = DROITE;
+          this->sens = dir;
+          this->commande_stop();
+          this->commande_gauche(this->boite_vitesse, HIGH);
+          this->commande_droite(this->boite_vitesse - 1, HIGH);
+      };
 };
-
 
 //-------------------- ULTRASON  -------------------------------
 class Ultrason{
@@ -164,102 +189,177 @@ class Ultrason{
 #define SOUND_SPEED 0.034
 
   private:
-    const int trigger = 13; // D7;
-    const int echo = 12;    // D6;
-    const int seuil1 = 40;  // si on est > seuil1 on avance, sinon on tourne à droite
-    const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
+    const int trigger = D7; // 13;
+    const int echo = D6;    // 12;
+    const int seuil1 = 70;  // si on est > seuil1 on avance, sinon on tourne à droite
+    const int seuil2 = 20;  // si on est < seuil2 on stop car on n'a plus la place de tourner
     Motorisation* motor = NULL;
+#define queue 10
+    int mesures[queue];
+    int pos = 0;
 
   public:
-  Ultrason(Motorisation* motor){
-    pinMode(this->trigger, OUTPUT); // Sets the trigger as an Output
-    pinMode(this->echo, INPUT); // Sets the echo as an Input
-    this->motor = motor;
-  };
-
-  int lecture(){
-     long duration;
-     digitalWrite(this->trigger, LOW);
-     delayMicroseconds(2);
-     // Sets the trigger on HIGH state for 10 micro seconds
-     digitalWrite(this->trigger, HIGH);
-     delayMicroseconds(10);
-     digitalWrite(this->trigger, LOW);
-     // Reads the echo, returns the sound wave travel time in microseconds
-     duration = pulseIn(this->echo, HIGH);
-
-     // Serial.println(duration * SOUND_SPEED/2);
-     if ((duration < 60000) && (duration > 1)) {
-        // Calcule la distance quand la lecture est vraisemblable
-        return (duration * SOUND_SPEED/2);
-    } else {
-        return (0);
+    Ultrason(Motorisation* motor){
+      pinMode(this->trigger, OUTPUT); // Sets the trigger as an Output
+      pinMode(this->echo, INPUT); // Sets the echo as an Input
+      this->motor = motor;
+      for (int i = 0; i < queue; i++) mesures[i] = 0;
     };
-  };
-
-  int action(){
-    int obstacle = this->lecture();
-    if (obstacle == 0) {}
-    else if (obstacle < this->seuil2) {
-      // on n'a plus la place de tourner
-      this->motor->stop();
-      return (STOP);
-    }
-    else if (obstacle < this->seuil1) {
-      // on contourne l'obstacle
-      this->motor->droite();
-    }
-    else {
-      // pas d'obstacle on avance
-      this->motor->avance();
+  
+    int lecture_instantanee(){
+       long duration;
+       digitalWrite(this->trigger, LOW);
+       delayMicroseconds(2);
+       // Sets the trigger on HIGH state for 10 micro seconds
+       digitalWrite(this->trigger, HIGH);
+       delayMicroseconds(10);
+       digitalWrite(this->trigger, LOW);
+       // Reads the echo, returns the sound wave travel time in microseconds
+       duration = pulseIn(this->echo, HIGH);
+  
+#ifdef DEBUG
+       // Serial.println(duration * SOUND_SPEED/2);
+#endif
+       if ((duration < 60000) && (duration > 1)) {
+          // Calcule la distance quand la lecture est vraisemblable
+          return (duration * SOUND_SPEED/2);
+      } else {
+          return (0);
+      };
     };
-    return (AVANCE);
-  };
+  
+    int lecture(){
+       int d = this->lecture_instantanee();
+       this->mesures[this->pos] = d;
+
+       int moyenne = 0;
+
+       for (int i = this->pos; i < queue; i++) moyenne += mesures[i];
+       if (this->pos > 0) {
+         for (int i = 0; i < this->pos; i++) moyenne += mesures[i];
+       }
+
+       moyenne = int(moyenne/queue);
+
+       this->pos += 1;
+       if (this->pos >= queue) this->pos = 0;
+
+       return (moyenne);       
+    }
+  
+    int action(int commande){
+
+      if (commande == V1 || commande == V2 || commande == V3) this->motor->action(commande);
+      
+      int sens = this->motor->sens;
+      int direction = this->motor->direction;
+      int obstacle = this->lecture();
+      int choix = int(random(DROITE, GAUCHE + 1));
+  
+#ifdef DEBUG
+      Serial.print("Ultrason action> obstacle=");
+      Serial.print(obstacle);
+      Serial.print(" cm");
+      Serial.print(" mode=");
+      Serial.print(text_mode[Mode]);
+      Serial.print(" commande=");
+      Serial.print(text_cmd[commande]);
+      Serial.print(" sens=");
+      Serial.print(text_cmd[sens]);
+      Serial.print(" direction=");
+      Serial.print(text_cmd[direction]);
+      Serial.print(" choix=");
+      Serial.print(text_cmd[choix]);
+      Serial.println("");
+#endif
+  
+      if (obstacle == 0) return (AVANCE);
+  
+      if (commande == 0) {
+        commande = sens;
+      }
+  
+      if (commande == STOP) this->motor->stop();
+      else {
+          if (obstacle < this->seuil2) {
+            // on n'a plus la place de tourner
+            this->motor->recule();
+            return (RECULE);
+          }
+          else if (obstacle < this->seuil1) {
+            // on contourne l'obstacle
+            if (direction == DROIT) { 
+              if (choix == DROITE) this->motor->droite();
+              else this->motor->gauche();
+            }
+            else if (direction == DROITE) this->motor->droite();
+            else if (direction == GAUCHE) this->motor->gauche();
+          }
+          else if (sens != AVANCE || direction != DROIT) {
+            // pas d'obstacle on avance
+            this->motor->avance();
+          };
+      }
+  
+      return (commande);
+    };
 };
 
 //-------------------- OPTIQUE -------------------------------
 class Optique{
 private:
-    Robot* robot = NULL;
     Motorisation* motor = NULL;
     int capteur = A0;         // lecture
 
 public:
-    int sensibilite = 10;     // seuil de sensibilite droite/gauche
+    int sensibilite = 2;     // seuil de sensibilite droite/gauche
     int balance_faite = 0;
     long balance = 0;    // par défaut. En faisant la balance des blancs on peut ajuster cette valeur
     long min_cps = 1000;
     long max_cps = -1000;
     long mid_cps = 1000;
 
-   Optique(Robot* robot, Motorisation* motor){
-       this->robot = robot;
+   Optique(Motorisation* motor){
        this->motor = motor;
+       this->set_sensibilite(S2);
    };
 
    long lecture(){
        return (analogRead(this->capteur));
    };
 
-   void balance_des_blancs(){
+   void balance_des_blancs(int commande){
+     if (commande == STOP) {
+        this->min_cps = 1000;
+        this->max_cps = -1000;
+        this->mid_cps = 1000;
+     }
+     this->motor->stop();
        // positionner une feuille blanche très près du capteur optique
-     long valeur = 512 - this->lecture();
+     long valeur_brute = this->lecture();
+     long valeur = 512 - valeur_brute;
   
      if (valeur > this->max_cps) this->max_cps = valeur;
      if (valeur < this->min_cps) this->min_cps = valeur;
   
      this->mid_cps = (this->max_cps + this->min_cps)/2.0;
 
-     //Serial.print("Balance ");
-     //Serial.print(this->min_cps);
-     //Serial.print(",");
-     //Serial.print(this->mid_cps);
-     //Serial.print(",");
-     //Serial.print(this->max_cps);
-     //Serial.println("");
-  
-     if (Serial.available()) {
-        String t = Serial.readStringUntil('\n');
+#ifdef DEBUG
+     Serial.print("Balance lecture brute=");
+     Serial.print(valeur_brute);
+     Serial.print(" lecture=");
+     Serial.print(valeur);
+     Serial.print(" [min, mid, max}=[");
+     Serial.print(this->min_cps);
+     Serial.print(",");
+     Serial.print(this->mid_cps);
+     Serial.print(",");
+     Serial.print(this->max_cps);
+     Serial.print("] ");
+     Serial.println("");
+#endif
+
+     if (commande == OK) {
         this->balance_faite = 1;
         this->balance = this->mid_cps;
      }
@@ -274,38 +374,80 @@ public:
        return (valeur - this->balance);
    };
 
-   void action(){
+   int set_sensibilite(int commande) {
+      this->sensibilite = map(commande, S1, S3, 20, 100);
+      return (this->sensibilite);
+   }
+
+   void action(int commande){
+
+       if (commande == V1 || commande == V2 || commande == V3) this->motor->action(commande);
+
+       if (commande == S1 || commande == S2 || commande == S3) {
+          this->set_sensibilite(commande);
+       }
+
+       int sens = this->motor->sens;
+       int direction = this->motor->direction;       
        int vitesse;
-       int dir = 0;
 
-       // this->motor->stop();
-
+       long valeur_brute = this->lecture();
+       long valeur = 512 - valeur_brute;
        int delta = this->delta();
-       this->motor->avance();
 
+//#ifdef DEBUG
+       Serial.print("Optique action> delta=");
+       Serial.print(delta);
+       Serial.print(" lecture brute=");
+       Serial.print(valeur_brute);
+       Serial.print(" lecture=");
+       Serial.print(valeur);
+       Serial.print(" balance=");
+       Serial.print(this->balance);
+       Serial.print(" mode=");
+       Serial.print(text_mode[Mode]);
+       Serial.print(" commande=");
+       Serial.print(text_cmd[commande]);
+       Serial.print(" sens=");
+       Serial.print(text_cmd[sens]);
+       Serial.print(" direction=");
+       Serial.print(text_cmd[direction]);
+       Serial.print(" sensibilite=");
+       Serial.print(this->sensibilite);
+       Serial.println("");
+//#endif
+
+      if (commande == STOP) this->motor->stop();
+      else {
+         if (abs(delta) < this->sensibilite)  {
+            // pas de différence notable
+            if (this->motor->sens != AVANCE) {
+#ifdef DEBUG
+               Serial.println(delta);
+               Serial.println("tout droit");
+#endif
+               this->motor->avance();
+            }
+         } else {
+            if (delta > 0 ) {
+               // lumière à droite => il faut redresser vers la droite
+               this->motor->droite();
+            } else if (delta < 0) {
+               // lumière à gauche => il faut redresser vers la gauche
+               this->motor->gauche();
+            }
+            delay(10);
+            this->motor->avance();
+         }
+
+      }
+
+      /*
        // on calcule la vitesse à appliquer proportionnelle au delta
        vitesse = map(abs(delta), 0, 512, 0, 4);
 
-       if (abs(delta) < this->sensibilite)  {
-          // pas de différence notable
-          if (this->robot->dir != AVANCE) {
-             // on remet le robot en marche avant
-             // Serial.println(delta);
-             // Serial.println("tout droit");
-             this->motor->avance();
-          }
-       } else {
-          if (delta > 0 ) {
-             // lumière à droite => il faut redresser vers la droite
-             this->motor->droite();
-          } else if (delta < 0) {
-             // lumière à gauche => il faut redresser vers la gauche
-             this->motor->gauche();
-          }
-          delay(10);
-          this->motor->avance();
-       }
-    }
+       */
+   }
 };
 
 //-------------------- WEB -------------------------------
@@ -326,10 +468,12 @@ class Web {
         char ssid[40];
         sprintf(ssid, "ANUMBY_%d", this->id); // ceci différencie la connexion pour chaque voiture
     
+#ifdef DEBUG
         Serial.print("Initialise le réseau ");
         Serial.print(ssid);
         Serial.print(" adresse ");
         Serial.println(apIP);
+#endif
     
         // declaration du wifi:
         WiFi.mode(WIFI_AP);
@@ -409,6 +553,7 @@ class Web_Balance: public Web {
       <br> \
       <table> \
         <tr> \
+          <td> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Reset </button> </td> \
           <td> <button name='LED0' class='button' value='") + String(BALANCE) + String("' type='submit'> Balance </button> </td> \
           <td> <button name='LED0' class='button' value='") + String(OK) + String("' type='submit'> Ok </button> </td> \
         </tr> \
@@ -474,9 +619,21 @@ class Web_Collision: public Web {
           <tr> \
               <td> <button name='LED0' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suivi </button></td> \
-              <td> <button name='LED0' class='cmd' value='") + String(TEST) + String("' type='submit'> Test </button></td> \
           </tr> \
       </table> \
+      <TABLE> \
+          <TR> \
+              <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
+              <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
+              <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
+          </TR> \
+          <TR> \
+               <TD> <p class='param'> Vitesse </p></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
+          </TR> \
+      </TABLE> \
     </form> ") + this->trailer();
       return (html);
     }
@@ -492,17 +649,37 @@ class Web_Suivi: public Web {
           <tr> \
               <td> <button name='LED0' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
               <td> <button name='LED0' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
-              <td> <button name='LED0' class='cmd' value='") + String(TEST) + String("' type='submit'> Test </button></td> \
+          </tr> \
+          <tr> \
+              <td> <button name='LED0' class='cmd' value='") + String(BALANCE) + String("' type='submit'> Balance Gauche/Droite </button></td> \
           </tr> \
       </table> \
+      <TABLE> \
+          <TR> \
+              <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
+              <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
+              <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
+          </TR> \
+          <TR> \
+               <TD> <p class='param'> Vitesse </p></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
+          </TR> \
+          <TR> \
+               <TD> <p class='param'> Sensibilit&eacute; </p></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(S1) + String("' type='submit'> S1 </button></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(S2) + String("' type='submit'> S2 </button></TD> \
+               <TD> <button name='LED0' class='param' value='") + String(S3) + String("' type='submit'> S3 </button></TD> \
+          </TR> \
+      </TABLE> \
     </form> ") + this->trailer();
       return (html);
     }
 };
 
-Robot R;
-Motorisation M(&R);
-Optique O(&R, &M);
+Motorisation M;
+Optique O(&M);
 Ultrason U(&M);
 
 class Coyote{
@@ -517,55 +694,6 @@ public:
       //    digitalWrite(D7, flag);
    };
 };
-
-Coyote C;
-
-void auto_test(){
-    unsigned long currentMillis = millis();
-    int flag = 1;
-    M.bip();
-    C.init();
-    if (O.lecture() > 10) M.bip();
-    if (abs(O.lecture() - 512) < 100 ) {
-       M.bip();
-       //balance_des_blancs();
-       Serial.print("Balance des blancs");
-       Serial.println(O.balance);
-    }
-    M.boite_vitesse = 1;
-    while(flag) {
-          int retour = U.action();
-          //  Serial.println(U.lecture());
-          Mode = retour;
-          if (retour == STOP) {
-              Mode = MANUEL;
-              flag = 0;
-          } else if (retour == AVANCE) {
-              int delta;
-              Serial.print("delta :");
-              delta = O.delta();
-              Serial.print(delta);
-              Serial.print(" distance :");
-              Serial.println(U.lecture());
-              if (abs(delta) < 50)  {
-                    M.avance();
-              } else {
-                   C.blink();
-                   if (C.flag) delta = - delta;
-                   if (delta > 0 ) {
-                        // lumière à droite => il faut redresser vers la droite
-                        M.droite();
-                   } else if (delta < 0) {
-                        // lumière à gauche => il faut redresser vers la gauche
-                        M.gauche();
-                   }
-               }
-          } else {
-              U.action();
-          }
-     }
-};
-
 
 Web W;
 Web_Balance WB(&O);
@@ -587,53 +715,70 @@ void handle_args(){
 
     if (server.argName(i) == "LED0") {
       commande = server.arg(i).toInt();
+#ifdef DEBUG
       Serial.print("Mode=");
       Serial.print(Mode);
       Serial.print(" commande=");
       Serial.print(commande);
       Serial.println("");
+#endif
       if (first == 1) {
         first = 0;
         Mode = MANUEL;
+
+#ifdef DEBUG
+        Serial.print("handle_args-first> Mode = ");
+        Serial.print(Mode);
+        Serial.print(" ");
+        Serial.print(text_mode[Mode]);
+        Serial.println("");
+#endif
+
         commande = 0;
       }
       else {
           if (Mode == MANUEL) {
             if (commande == COLLISION) Mode = COLLISION;
             else if (commande == SUIVI) Mode = SUIVI;
-            else M.action(commande);
-          }
-          else if (Mode == BALANCE) {
-            if (commande == BALANCE) O.balance_des_blancs();
-            else if (commande == OK) Mode = MANUEL;
           }
           else if (Mode == COLLISION) {
             if (commande == MANUEL) Mode = MANUEL;
-            else if (commande == TEST) {
-              auto_test();
-              Mode = COLLISION;
-            }
             else if (commande == SUIVI) {
               Mode = SUIVI;
             }
-            U.action();
           }
           else if (Mode == SUIVI) {
             if (commande == MANUEL) Mode = MANUEL;
-            else if (commande == TEST) {
-              auto_test();
-              Mode = SUIVI;
+            else if (commande == BALANCE) {
+              Mode = BALANCE;
             }
             else if (commande == COLLISION) {
               Mode = COLLISION;
             }
-            O.action();
           }
+          else if (Mode == BALANCE) {
+            O.balance_des_blancs(commande);
+            if (commande == OK) Mode = SUIVI;
+          }
+
+#ifdef DEBUG
+          Serial.print("handle_args> Mode = ");
+          Serial.print(Mode);
+          Serial.print(" ");
+          Serial.print(text_mode[Mode]);
+          Serial.println("");
+#endif
+
+          if (Mode == MANUEL) M.action(commande);
+          else if (Mode == COLLISION) U.action(commande);
+          else if (Mode == SUIVI) O.action(commande);
        }
     }
   }
+#ifdef DEBUG
   Serial.print("handleRoute> ");
   Serial.println(message);
+#endif
 
   String html = "";
   if (Mode == MANUEL) html = WM.pager(0);
@@ -661,13 +806,28 @@ void setup()
 }
 
 void loop() {
+  /*
+    {
+        Serial.flush();
+        Serial.end();
+        Serial.begin(115200);
+    }
+    */
     server.handleClient();
+
+    if (Mode == COLLISION){
+      int commande = U.action(0);
+    }
+
+    //O.balance_des_blancs(0);
 
     if (Serial.available()){
        String t = Serial.readStringUntil('\n');
        int commande = t.toInt();
+#ifdef DEBUG
        Serial.print("Commande=");
        Serial.println(commande);
+#endif
        M.action(commande);
     }
 

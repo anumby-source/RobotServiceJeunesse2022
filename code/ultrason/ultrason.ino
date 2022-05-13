@@ -14,8 +14,8 @@ class Ultrason{
 #define SOUND_SPEED 0.034
 
   private:
-    const int trigger = 13; // D7;
-    const int echo = 12;    // D6;
+    const int trigger = D7; //   13;
+    const int echo = D6;    //   12;
     const int seuil1 = 40;  // si on est > seuil1 on avance, sinon on tourne à droite
     const int seuil2 = 10;  // si on est < seuil2 on stop car on n'a plus la place de tourner
 
