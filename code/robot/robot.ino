@@ -20,23 +20,23 @@
 #define V2      8
 #define V3      9
 
-#define MANUEL    10
-#define COLLISION 11
-#define SUIVI     12
-#define BALANCE   13
-#define OK        14
-#define TEST      15
+#define MANUEL        10
+#define COLLISION     11
+#define SUIVI         12
+#define EQUILIBRAGE   13
+#define OK            14
+#define TEST          15
 
-#define S1      16
-#define S2      17
-#define S3      18
+#define S1            16
+#define S2            17
+#define S3            18
 
 // #define DEBUG   0
 
 //                  0   1               2      3                  4         5        6    7   8
 String dirs[9] = { "", "Arr&ecirc;t", "Avant", "Arri&egrave;re", "Droite", "Gauche", "", "", ""};
 String text_cmd[19] = { "", "STOP", "AVANCE", "RECULE", "DROITE", "GAUCHE", "DROIT", "V1", "V2", "V3", \
-                        "MANUEL", "COLLISION", "SUIVI", "BALANCE", "OK", "TEST", \
+                        "MANUEL", "COLLISION", "SUIVI", "EQUILIBRAGE", "OK", "TEST", \
                         "S1", "S2", "S3"};
 String text_mode[13] = { "", "", "", "", "", "", "", "", "", "", "MANUEL", "COLLISION", "SUIVI"};
 
@@ -189,120 +189,133 @@ class Ultrason{
 #define SOUND_SPEED 0.034
 
   private:
-    const int trigger = D7; // 13;
-    const int echo = D6;    // 12;
-    const int seuil1 = 70;  // si on est > seuil1 on avance, sinon on tourne à droite
-    const int seuil2 = 20;  // si on est < seuil2 on stop car on n'a plus la place de tourner
-    Motorisation* motor = NULL;
+      const int trigger = D7; // 13;
+      const int echo = D6;    // 12;
+      const int seuil1 = 70;  // si on est > seuil1 on avance, sinon on tourne à droite
+      const int seuil2 = 20;  // si on est < seuil2 on stop car on n'a plus la place de tourner
+      Motorisation* motor = NULL;
 #define queue 10
-    int mesures[queue];
-    int pos = 0;
+      int mesures[queue];     // tampon pour moyenner la mesure ultrason pour lisser les glitches
+      int pos = 0;            // index tournant dans le tampon
+      int recul = 0;
 
   public:
-    Ultrason(Motorisation* motor){
-      pinMode(this->trigger, OUTPUT); // Sets the trigger as an Output
-      pinMode(this->echo, INPUT); // Sets the echo as an Input
-      this->motor = motor;
-      for (int i = 0; i < queue; i++) mesures[i] = 0;
-    };
-  
-    int lecture_instantanee(){
-       long duration;
-       digitalWrite(this->trigger, LOW);
-       delayMicroseconds(2);
-       // Sets the trigger on HIGH state for 10 micro seconds
-       digitalWrite(this->trigger, HIGH);
-       delayMicroseconds(10);
-       digitalWrite(this->trigger, LOW);
-       // Reads the echo, returns the sound wave travel time in microseconds
-       duration = pulseIn(this->echo, HIGH);
-  
-#ifdef DEBUG
-       // Serial.println(duration * SOUND_SPEED/2);
-#endif
-       if ((duration < 60000) && (duration > 1)) {
-          // Calcule la distance quand la lecture est vraisemblable
-          return (duration * SOUND_SPEED/2);
-      } else {
-          return (0);
+      Ultrason(Motorisation* motor){
+          pinMode(this->trigger, OUTPUT); // Sets the trigger as an Output
+          pinMode(this->echo, INPUT); // Sets the echo as an Input
+          this->motor = motor;
+          for (int i = 0; i < queue; i++) mesures[i] = 0;
       };
-    };
   
-    int lecture(){
-       int d = this->lecture_instantanee();
-       this->mesures[this->pos] = d;
-
-       int moyenne = 0;
-
-       for (int i = this->pos; i < queue; i++) moyenne += mesures[i];
-       if (this->pos > 0) {
-         for (int i = 0; i < this->pos; i++) moyenne += mesures[i];
-       }
-
-       moyenne = int(moyenne/queue);
-
-       this->pos += 1;
-       if (this->pos >= queue) this->pos = 0;
-
-       return (moyenne);       
-    }
-  
-    int action(int commande){
-
-      if (commande == V1 || commande == V2 || commande == V3) this->motor->action(commande);
-      
-      int sens = this->motor->sens;
-      int direction = this->motor->direction;
-      int obstacle = this->lecture();
-      int choix = int(random(DROITE, GAUCHE + 1));
+      int lecture_brute(){
+          long duration;
+          digitalWrite(this->trigger, LOW);
+          delayMicroseconds(2);
+          // Sets the trigger on HIGH state for 10 micro seconds
+          digitalWrite(this->trigger, HIGH);
+          delayMicroseconds(10);
+          digitalWrite(this->trigger, LOW);
+          // Reads the echo, returns the sound wave travel time in microseconds
+          duration = pulseIn(this->echo, HIGH);
   
 #ifdef DEBUG
-      Serial.print("Ultrason action> obstacle=");
-      Serial.print(obstacle);
-      Serial.print(" cm");
-      Serial.print(" mode=");
-      Serial.print(text_mode[Mode]);
-      Serial.print(" commande=");
-      Serial.print(text_cmd[commande]);
-      Serial.print(" sens=");
-      Serial.print(text_cmd[sens]);
-      Serial.print(" direction=");
-      Serial.print(text_cmd[direction]);
-      Serial.print(" choix=");
-      Serial.print(text_cmd[choix]);
-      Serial.println("");
+          // Serial.println(duration * SOUND_SPEED/2);
+#endif
+          if ((duration < 60000) && (duration > 1)) {
+             // Calcule la distance quand la lecture est vraisemblable
+             return (duration * SOUND_SPEED/2);
+          } else {
+             return (0);
+          };
+      };
+  
+      int lecture(){
+          int d = this->lecture_brute();
+          this->mesures[this->pos] = d;
+
+          int moyenne = 0;
+
+          for (int i = this->pos; i < queue; i++) moyenne += mesures[i];
+          if (this->pos > 0) {
+            for (int i = 0; i < this->pos; i++) moyenne += mesures[i];
+          }
+
+          moyenne = int(moyenne/queue);
+
+          this->pos += 1;
+          if (this->pos >= queue) this->pos = 0;
+
+          return (moyenne);
+      };
+  
+      int action(int commande){
+
+          if (commande == V1 || commande == V2 || commande == V3) this->motor->action(commande);
+
+          int sens = this->motor->sens;
+          int direction = this->motor->direction;
+          int obstacle = this->lecture();
+          int choix = int(random(DROITE, GAUCHE + 1));
+
+#ifdef DEBUG
+          Serial.print("Ultrason action> obstacle=");
+          Serial.print(obstacle);
+          Serial.print(" cm");
+          Serial.print(" mode=");
+          Serial.print(text_mode[Mode]);
+          Serial.print(" commande=");
+          Serial.print(text_cmd[commande]);
+          Serial.print(" sens=");
+          Serial.print(text_cmd[sens]);
+          Serial.print(" direction=");
+          Serial.print(text_cmd[direction]);
+          Serial.print(" choix=");
+          Serial.print(text_cmd[choix]);
+          Serial.print(" recul=");
+          Serial.print(this->recul);
+          Serial.println("");
 #endif
   
-      if (obstacle == 0) return (AVANCE);
-  
-      if (commande == 0) {
-        commande = sens;
-      }
-  
-      if (commande == STOP) this->motor->stop();
-      else {
-          if (obstacle < this->seuil2) {
-            // on n'a plus la place de tourner
-            this->motor->recule();
-            return (RECULE);
+          if (obstacle == 0) return (AVANCE);
+
+          if (commande == 0) {
+              commande = sens;
+              if (sens == RECULE)
+              {
+                  this->recul += 1;
+              }
+              else
+              {
+                  this->recul = 0;
+              }
           }
-          else if (obstacle < this->seuil1) {
-            // on contourne l'obstacle
-            if (direction == DROIT) { 
-              if (choix == DROITE) this->motor->droite();
-              else this->motor->gauche();
-            }
-            else if (direction == DROITE) this->motor->droite();
-            else if (direction == GAUCHE) this->motor->gauche();
+
+          if (commande == STOP) this->motor->stop();
+          else {
+              if (obstacle < this->seuil2) {
+                  // on n'a plus la place de tourner
+                  // on va reculer pendant un certain temps
+                  this->motor->recule();
+                  this->recul += 1;
+                  return (RECULE);
+              }
+              else if (obstacle < this->seuil1) {
+                  // on contourne l'obstacle
+                  if (direction == DROIT) {
+                    if (choix == DROITE) this->motor->droite();
+                    else this->motor->gauche();
+                  }
+                  else if (direction == DROITE) this->motor->droite();
+                  else if (direction == GAUCHE) this->motor->gauche();
+              }
+              else if (sens != AVANCE || direction != DROIT) {
+                  // pas d'obstacle on avance
+                  this->motor->avance();
+              };
           }
-          else if (sens != AVANCE || direction != DROIT) {
-            // pas d'obstacle on avance
-            this->motor->avance();
-          };
-      }
-  
-      return (commande);
-    };
+
+          return (commande);
+      };
 };
 
 //-------------------- OPTIQUE -------------------------------
@@ -313,8 +326,8 @@ private:
 
 public:
     int sensibilite = 2;     // seuil de sensibilite droite/gauche
-    int balance_faite = 0;
-    long balance = 0;    // par défaut. En faisant la balance des blancs on peut ajuster cette valeur
+    int equilibrage_fait = 0;
+    long valeur_equilibre = 0;    // par défaut. En faisant l'equilibrage on peut ajuster cette valeur
     long min_cps = 1000;
     long max_cps = -1000;
     long mid_cps = 1000;
@@ -328,12 +341,13 @@ public:
        return (analogRead(this->capteur));
    };
 
-   void balance_des_blancs(int commande){
+   void equilibrage(int commande){
      if (commande == STOP) {
         this->min_cps = 1000;
         this->max_cps = -1000;
         this->mid_cps = 1000;
      }
+
      this->motor->stop();
        // positionner une feuille blanche très près du capteur optique
      long valeur_brute = this->lecture();
@@ -345,7 +359,7 @@ public:
      this->mid_cps = (this->max_cps + this->min_cps)/2.0;
 
 #ifdef DEBUG
-     Serial.print("Balance lecture brute=");
+     Serial.print("Equilibrage lecture brute=");
      Serial.print(valeur_brute);
      Serial.print(" lecture=");
      Serial.print(valeur);
@@ -360,8 +374,8 @@ public:
 #endif
 
      if (commande == OK) {
-        this->balance_faite = 1;
-        this->balance = this->mid_cps;
+        this->equilibrage_fait = 1;
+        this->valeur_equilibre = this->mid_cps;
      }
    };
 
@@ -371,7 +385,8 @@ public:
       // delta < 0 => lumière à gauche 
 
        long valeur = 512 - this->lecture();
-       return (valeur - this->balance);
+
+       return (valeur - this->valeur_equilibre);
    };
 
    int set_sensibilite(int commande) {
@@ -379,15 +394,20 @@ public:
       return (this->sensibilite);
    }
 
-   void action(int commande){
+   int action(int commande){
 
-       if (commande == V1 || commande == V2 || commande == V3) this->motor->action(commande);
+       int sens = this->motor->sens;
+
+       if (commande == V1 || commande == V2 || commande == V3) {
+          this->motor->action(commande);
+          commande = sens;
+       };
 
        if (commande == S1 || commande == S2 || commande == S3) {
           this->set_sensibilite(commande);
+          commande = sens;
        }
 
-       int sens = this->motor->sens;
        int direction = this->motor->direction;       
        int vitesse;
 
@@ -395,15 +415,15 @@ public:
        long valeur = 512 - valeur_brute;
        int delta = this->delta();
 
-//#ifdef DEBUG
+#ifdef DEBUG
        Serial.print("Optique action> delta=");
        Serial.print(delta);
        Serial.print(" lecture brute=");
        Serial.print(valeur_brute);
        Serial.print(" lecture=");
        Serial.print(valeur);
-       Serial.print(" balance=");
-       Serial.print(this->balance);
+       Serial.print(" valeur_equilibre=");
+       Serial.print(this->valeur_equilibre);
        Serial.print(" mode=");
        Serial.print(text_mode[Mode]);
        Serial.print(" commande=");
@@ -415,31 +435,34 @@ public:
        Serial.print(" sensibilite=");
        Serial.print(this->sensibilite);
        Serial.println("");
-//#endif
-
-      if (commande == STOP) this->motor->stop();
-      else {
-         if (abs(delta) < this->sensibilite)  {
-            // pas de différence notable
-            if (this->motor->sens != AVANCE) {
-#ifdef DEBUG
-               Serial.println(delta);
-               Serial.println("tout droit");
 #endif
-               this->motor->avance();
-            }
-         } else {
-            if (delta > 0 ) {
-               // lumière à droite => il faut redresser vers la droite
-               this->motor->droite();
-            } else if (delta < 0) {
-               // lumière à gauche => il faut redresser vers la gauche
-               this->motor->gauche();
-            }
-            delay(10);
-            this->motor->avance();
-         }
 
+       if (commande == 0) {
+           commande = sens;
+       }
+
+       if (commande == STOP) this->motor->stop();
+       else {
+          if (abs(delta) < this->sensibilite)  {
+             // pas de différence notable
+             if (this->motor->sens != AVANCE) {
+#ifdef DEBUG
+                Serial.println(delta);
+                Serial.println("tout droit");
+#endif
+                this->motor->avance();
+             }
+          } else {
+             if (delta > 0 ) {
+                // lumière à droite => il faut redresser vers la droite
+                this->motor->droite();
+             } else if (delta < 0) {
+                // lumière à gauche => il faut redresser vers la gauche
+                this->motor->gauche();
+             }
+             //delay(10);
+             this->motor->avance();
+          }
       }
 
       /*
@@ -447,6 +470,8 @@ public:
        vitesse = map(abs(delta), 0, 512, 0, 4);
 
        */
+
+       return (commande);
    }
 };
 
@@ -529,17 +554,17 @@ class Web {
     }
 };
 
-class Web_Balance: public Web {
+class Web_Equilibrage: public Web {
   public:
      Optique* optique;
 
-     Web_Balance(Optique* optique) {
+     Web_Equilibrage(Optique* optique) {
         this->optique = optique;
       }
       
     String pager(int commande){
       String html = this->header() + String(" \
-    <h1>Robot Service Jeunesse - Balance des blancs</h1> \
+    <h1>Robot Service Jeunesse - Equilibrage des capteurs optiques</h1> \
     <form> \
       <label for='identification'>identification:</label> \n \
       <input class='echo' id='identification' name='identification'  value=' ") + String(ESP.getChipId()) + String("'> \
@@ -553,9 +578,9 @@ class Web_Balance: public Web {
       <br> \
       <table> \
         <tr> \
-          <td> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Reset </button> </td> \
-          <td> <button name='LED0' class='button' value='") + String(BALANCE) + String("' type='submit'> Balance </button> </td> \
-          <td> <button name='LED0' class='button' value='") + String(OK) + String("' type='submit'> Ok </button> </td> \
+          <td> <button name='COMMANDE' class='button' value='") + String(STOP) + String("' type='submit'> Reset </button> </td> \
+          <td> <button name='COMMANDE' class='button' value='") + String(EQUILIBRAGE) + String("' type='submit'> Equilibrage </button> </td> \
+          <td> <button name='COMMANDE' class='button' value='") + String(OK) + String("' type='submit'> Ok </button> </td> \
         </tr> \
       </table> \
     </form> ") + this->trailer();
@@ -578,27 +603,27 @@ class Web_Motorisation: public Web {
     <form> \
       <table> \
           <tr> \
-              <td> <button name='LED0' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
-              <td> <button name='LED0' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suivi </button></td> \
+              <td> <button name='COMMANDE' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
+              <td> <button name='COMMANDE' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suivi </button></td> \
           </tr> \
       </table> \
       <TABLE> \
           <TR> \
-              <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
           </TR> \
       </TABLE> \
       <TABLE> \
           <TR> \
-              <TD> <button name='LED0' class='button' value='") + String(GAUCHE) + String("' type='submit'> Gauche </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(DROITE) + String("' type='submit'> Droite </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(GAUCHE) + String("' type='submit'> Gauche </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(DROITE) + String("' type='submit'> Droite </button></TD> \
           </TR> \
           <TR> \
                <TD> <p class='param'> Vitesse </p></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
           </TR> \
       </TABLE> \
       <label for='vitesse'>vitesse:</label> \n \
@@ -617,21 +642,21 @@ class Web_Collision: public Web {
     <form> \
       <table> \
           <tr> \
-              <td> <button name='LED0' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
-              <td> <button name='LED0' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suivi </button></td> \
+              <td> <button name='COMMANDE' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
+              <td> <button name='COMMANDE' class='cmd' value='") + String(SUIVI) + String("' type='submit'> Suivi </button></td> \
           </tr> \
       </table> \
       <TABLE> \
           <TR> \
-              <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
           </TR> \
           <TR> \
                <TD> <p class='param'> Vitesse </p></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
           </TR> \
       </TABLE> \
     </form> ") + this->trailer();
@@ -647,30 +672,29 @@ class Web_Suivi: public Web {
     <form> \
       <table> \
           <tr> \
-              <td> <button name='LED0' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
-              <td> <button name='LED0' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
+              <td> <button name='COMMANDE' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
+              <td> <button name='COMMANDE' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
           </tr> \
           <tr> \
-              <td> <button name='LED0' class='cmd' value='") + String(BALANCE) + String("' type='submit'> Balance Gauche/Droite </button></td> \
+              <td> <button name='COMMANDE' class='cmd' value='") + String(EQUILIBRAGE) + String("' type='submit'> Equilibrage </button></td> \
           </tr> \
       </table> \
       <TABLE> \
           <TR> \
-              <TD> <button name='LED0' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
-              <TD> <button name='LED0' class='button' value='") + String(RECULE) + String("' type='submit'> Arri&egrave;re </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(AVANCE) + String("' type='submit'> Avant </button></TD> \
+              <TD> <button name='COMMANDE' class='button' value='") + String(STOP) + String("' type='submit'> Stop </button></TD> \
           </TR> \
           <TR> \
                <TD> <p class='param'> Vitesse </p></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V1) + String("' type='submit'> V1 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V2) + String("' type='submit'> V2 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(V3) + String("' type='submit'> V3 </button></TD> \
           </TR> \
           <TR> \
                <TD> <p class='param'> Sensibilit&eacute; </p></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(S1) + String("' type='submit'> S1 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(S2) + String("' type='submit'> S2 </button></TD> \
-               <TD> <button name='LED0' class='param' value='") + String(S3) + String("' type='submit'> S3 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(S1) + String("' type='submit'> S1 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(S2) + String("' type='submit'> S2 </button></TD> \
+               <TD> <button name='COMMANDE' class='param' value='") + String(S3) + String("' type='submit'> S3 </button></TD> \
           </TR> \
       </TABLE> \
     </form> ") + this->trailer();
@@ -696,7 +720,7 @@ public:
 };
 
 Web W;
-Web_Balance WB(&O);
+Web_Equilibrage WB(&O);
 Web_Motorisation WM(&M);
 Web_Collision WC;
 Web_Suivi WS;
@@ -713,7 +737,7 @@ void handle_args(){
     message += server.argName(i) + ": ";
     message += server.arg(i) + "\n";
 
-    if (server.argName(i) == "LED0") {
+    if (server.argName(i) == "COMMANDE") {
       commande = server.arg(i).toInt();
 #ifdef DEBUG
       Serial.print("Mode=");
@@ -749,29 +773,34 @@ void handle_args(){
           }
           else if (Mode == SUIVI) {
             if (commande == MANUEL) Mode = MANUEL;
-            else if (commande == BALANCE) {
-              Mode = BALANCE;
+            else if (commande == EQUILIBRAGE) {
+              Mode = EQUILIBRAGE;
             }
             else if (commande == COLLISION) {
               Mode = COLLISION;
             }
           }
-          else if (Mode == BALANCE) {
-            O.balance_des_blancs(commande);
+          else if (Mode == EQUILIBRAGE) {
+            O.equilibrage(commande);
             if (commande == OK) Mode = SUIVI;
           }
 
-#ifdef DEBUG
+//#ifdef DEBUG
           Serial.print("handle_args> Mode = ");
           Serial.print(Mode);
           Serial.print(" ");
           Serial.print(text_mode[Mode]);
+          Serial.print(" Commande=");
+          Serial.print(text_cmd[commande]);
+          Serial.print(" ");
+          Serial.print(text_mode[Mode]);
           Serial.println("");
-#endif
+//#endif
 
           if (Mode == MANUEL) M.action(commande);
           else if (Mode == COLLISION) U.action(commande);
           else if (Mode == SUIVI) O.action(commande);
+          else if (Mode == EQUILIBRAGE) O.equilibrage(commande);
        }
     }
   }
@@ -782,7 +811,7 @@ void handle_args(){
 
   String html = "";
   if (Mode == MANUEL) html = WM.pager(0);
-  else if (Mode == BALANCE) html = WB.pager(0);
+  else if (Mode == EQUILIBRAGE) html = WB.pager(0);
   else if (Mode == COLLISION) html = WC.pager(0);
   else if (Mode == SUIVI) html = WS.pager(0);
 
@@ -819,7 +848,13 @@ void loop() {
       int commande = U.action(0);
     }
 
-    //O.balance_des_blancs(0);
+    if (Mode == SUIVI){
+      O.action(0);
+    }
+
+    if (Mode == EQUILIBRAGE){
+      O.equilibrage(0);
+    }
 
     if (Serial.available()){
        String t = Serial.readStringUntil('\n');
