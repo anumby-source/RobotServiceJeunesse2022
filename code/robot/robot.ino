@@ -4,7 +4,8 @@
 // le coeur du code est hérité du code développé par Arnaud
 // Reformatté et structuré pour l'algorithmique en C++ par Chris
 //
-// Utilisation de la carte LOLIN(WEMOS) D1 R2 & mini 
+// Utilisation de la carte NodeMCU 1.0 (ESP-12E Module)
+//
 
 
 #include <ESP8266WiFi.h>
@@ -675,7 +676,7 @@ class Web_Suivi: public Web {
               <td> <button name='COMMANDE' class='cmd' value='") + String(MANUEL) + String("' type='submit'> Manuel </button></td> \
               <td> <button name='COMMANDE' class='cmd' value='") + String(COLLISION) + String("' type='submit'> Collision </button></td> \
           </tr> \
-          <tr> \
+          <tr colspan='2'> \
               <td> <button name='COMMANDE' class='cmd' value='") + String(EQUILIBRAGE) + String("' type='submit'> Equilibrage </button></td> \
           </tr> \
       </table> \
