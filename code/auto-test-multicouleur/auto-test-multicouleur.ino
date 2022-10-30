@@ -604,12 +604,26 @@ void setup()
    Serial.begin(115200);
    Serial.println("ROBOT");
        M.bip();
+
+    int i=5;
+    while(i--){ // AUTOTEST des 5 couleurs
+        neo_distance(i);
+    delay(500);
+    }
+    while( int u = U.read() > 10 ){ // AUTOTEST ultrason avec 5 couleurs
+          // Serial.println(u = U.read());    
+              neo_distance ( (NB_COLOR * ( u - U.min)) / (U.max - U.min));
+              delay(200);
+      
+    }
+              
+
    auto_test();
       web.init(&robot);
 }
 
 void loop()
 {
-     auto_test();
+     auto_test(); // AUTOTEST ultrason + moteur + solaire
 
 }
