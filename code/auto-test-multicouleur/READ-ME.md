@@ -8,7 +8,7 @@ AUTO TEST ULTRA SON seul
 
 allumage de la LED neopixel sans moteur
 
-Le capteur ultrason va allumer une led multicolore 
+Le capteur ultrason va allumer une led multicolore sans moteur
 
 le moteur ne se met en route que lorsque la distance est < 10 cm
 
