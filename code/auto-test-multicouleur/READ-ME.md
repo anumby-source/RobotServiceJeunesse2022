@@ -1,8 +1,20 @@
 multi-capteur avec LED multicolore
 
-Pour cela, la PIN D-IN de la LED est placée sur l'entrée TRIGGER du capteur ultrason
+AUTO TEST
 
-allume une led pour optique
+bip moteur
+
+AUTO TEST ULTRA SON seul 
+
+allumage de la LED neopixel sans moteur
+
+Le capteur ultrason va allumer une led multicolore 
+
+le moteur ne se met en route que lorsque la distance est < 10 cm
+
+AUTO TEST OPTIQUE seul 
+
+allume une led pour optique sans moteur
 
 - Rouge pour la droite
 - Verte tout droit si la balance est à l'équilibre
@@ -10,8 +22,7 @@ allume une led pour optique
 
 - la couleur va changer du rouge, vert au bleu continûment  pour les positions intermédiaires
 
-allume une led pour ultrason si pas d'optique
 
-Le capteur ultrason va allumer une led multicolore bleue
+la PIN D-IN de la LED est placée sur l'entrée TRIGGER du capteur ultrason
 
 
