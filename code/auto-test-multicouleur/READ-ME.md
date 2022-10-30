@@ -1,5 +1,7 @@
 multi-capteur avec LED multicolore
 
+pas besoin de pin pour la LED : la PIN D-IN de la LED est placée directement sur l'entrée TRIGGER du capteur ultrason
+
 AUTO TEST
 
 bip moteur
@@ -23,6 +25,6 @@ allume une led pour optique sans moteur
 - la couleur va changer du rouge, vert au bleu continûment  pour les positions intermédiaires
 
 
-la PIN D-IN de la LED est placée sur l'entrée TRIGGER du capteur ultrason
+
 
 
