@@ -37,7 +37,8 @@ allume une led pour optique sans moteur
 
 # Schema electrique
 
-![image](https://github.com/anumby-source/RobotServiceJeunesse2022/assets/90700891/9611b943-ae85-49ca-9d82-464f9f108b9a)
+![image](https://github.com/anumby-source/RobotServiceJeunesse2022/assets/90700891/f265df17-b4af-40f0-a3b2-9371980d9690)
+
 
 
 
