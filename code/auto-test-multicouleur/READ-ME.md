@@ -24,6 +24,7 @@ allume une led pour optique sans moteur
 - Bleu  pour la gauche
 
 
+- la couleur va changer du rouge, vert au bleu continûment  pour les positions intermédiaires
 
 # Liste de materiel:
 - __ESP8266 Nodemcu__ : https://fr.aliexpress.com/item/32659028315.html?spm=a2g0o.order_list.order_list_main.51.5f2c5e5bFkj0JY&gatewayAdapt=glo2fra
@@ -35,9 +36,10 @@ allume une led pour optique sans moteur
 - __2 résistances__
 
 # Schema electrique
-![](./Robot_Jerome.png)
 
-- la couleur va changer du rouge, vert au bleu continûment  pour les positions intermédiaires
+![image](https://github.com/anumby-source/RobotServiceJeunesse2022/assets/90700891/9611b943-ae85-49ca-9d82-464f9f108b9a)
+
+
 
 
 
