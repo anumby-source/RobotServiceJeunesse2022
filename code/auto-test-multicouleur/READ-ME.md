@@ -1,4 +1,7 @@
 # Introduction
+
+![neo-robot](https://github.com/anumby-source/RobotServiceJeunesse2022/blob/main/D%C3%A9tecteur%20de%20collisions/neo-robot.png)
+
 Ce projet est une adapatation de la voiture 2 roues Anumby 2021 multi-capteur avec LED multicolore
 
 pas besoin de pin pour la LED : la PIN D-IN de la LED est placée directement sur l'entrée TRIGGER du capteur ultrason
