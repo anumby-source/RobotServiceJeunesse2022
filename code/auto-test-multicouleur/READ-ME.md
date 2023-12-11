@@ -31,7 +31,7 @@ allume une led pour optique sans moteur
 - __shield moteur L293D__ : https://fr.aliexpress.com/item/1005003186128473.html?spm=a2g0o.order_list.order_list_main.45.5f2c5e5bFkj0JY&gatewayAdapt=glo2fra
 - __capteur ultrason HC-SR04__
 - __diode neopixel ws2811__
-- __2 cellules photovoltaïques__
+- __2 cellules photovoltaïques__ : https://fr.aliexpress.com/item/32814941048.htm
 - __2 résistances__
 
 # Schema electrique
